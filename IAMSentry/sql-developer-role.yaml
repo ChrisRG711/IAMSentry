@@ -1,0 +1,14 @@
+title: "SQL Developer Role"
+description: "Custom role for database developers who need to query, analyze, and modify database schemas and data"
+stage: "GA"
+includedPermissions:
+- cloudsql.instances.connect
+- cloudsql.instances.get
+- cloudsql.databases.list
+- cloudsql.databases.get
+- cloudsql.databases.create
+- cloudsql.databases.update
+- cloudsql.operations.list
+- cloudsql.operations.get
+- logging.logEntries.list
+- monitoring.timeSeries.list

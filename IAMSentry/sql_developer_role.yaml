@@ -1,0 +1,81 @@
+title: "SQL Developer Role"
+description: "Custom role for database developers who need to query, analyze, and modify database schemas and data"
+stage: "GA"
+
+includedPermissions:
+  # Core database connectivity
+  - cloudsql.instances.connect
+  - cloudsql.instances.get
+  
+  # Database and schema management
+  - cloudsql.databases.list
+  - cloudsql.databases.get
+  - cloudsql.databases.create
+  - cloudsql.databases.update
+  
+  # Query execution and data manipulation
+  - cloudsql.instances.executeQuery
+  
+  # Backup and export for development
+  - cloudsql.backupRuns.list
+  - cloudsql.backupRuns.get
+  
+  # User management (if needed for app testing)
+  - cloudsql.users.list
+  - cloudsql.users.create
+  - cloudsql.users.update
+  
+  # Monitoring and troubleshooting
+  - cloudsql.operations.list
+  - cloudsql.operations.get
+  - logging.logEntries.list
+  - monitoring.timeSeries.list
+
+# Alternative: Progressive permission model
+minimal_permissions:
+  # Start with these, add more as needed
+  - cloudsql.instances.connect
+  - cloudsql.databases.list
+  - cloudsql.databases.get
+  - cloudsql.instances.executeQuery
+  - logging.logEntries.list
+
+# Permissions NOT included (admin-level)
+excluded_admin_permissions:
+  - cloudsql.instances.create      # Instance creation
+  - cloudsql.instances.delete      # Instance deletion
+  - cloudsql.instances.restart     # Instance control
+  - cloudsql.sslCerts.create      # SSL management
+  - cloudsql.instances.update     # Instance configuration
+
+# Implementation commands
+gcloud_commands: |
+  # Create the custom role
+  gcloud iam roles create sqlDeveloper \
+    --project=foiply-app \
+    --title="SQL Developer Role" \
+    --description="Custom role for database developers" \
+    --permissions=cloudsql.instances.connect,cloudsql.instances.get,cloudsql.databases.list,cloudsql.databases.get,cloudsql.databases.create,cloudsql.databases.update,cloudsql.instances.executeQuery,cloudsql.operations.list,cloudsql.operations.get,logging.logEntries.list
+  
+  # Assign to Alex Nosov
+  gcloud projects add-iam-policy-binding foiply-app \
+    --member="user:alex.nosov@documo.com" \
+    --role="projects/foiply-app/roles/sqlDeveloper"
+  
+  # Remove any existing over-privileged roles
+  gcloud projects remove-iam-policy-binding foiply-app \
+    --member="user:alex.nosov@documo.com" \
+    --role="roles/cloudsql.admin"
+
+# Monitoring and validation
+validation_steps:
+  1. Test database connectivity from Alex's workstation
+  2. Verify he can create/modify development databases
+  3. Confirm he can run analytical queries
+  4. Ensure he cannot modify production instance settings
+  5. Monitor for any permission denied errors in first week
+
+# Escalation path
+escalation_permissions:
+  # If temporary admin access needed, use conditional binding
+  # with time-based condition for emergency access

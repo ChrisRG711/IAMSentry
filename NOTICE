@@ -1,0 +1,40 @@
+IAMSentry
+Copyright 2024 Documo
+
+This project is a fork of CureIAM, originally developed by the Gojek Product
+Security Team (https://github.com/gojek/CureIAM), licensed under the Apache
+License, Version 2.0.
+
+Original CureIAM Copyright 2021 Gojek
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+===============================================================================
+
+SIGNIFICANT MODIFICATIONS AND ADDITIONS BY DOCUMO:
+
+The following features and enhancements have been added to the original codebase:
+
+- Web dashboard with Vue.js frontend and FastAPI backend
+- Authentication system (API Key and HTTP Basic Auth)
+- Comprehensive audit logging with HMAC signing for compliance
+- Modern CLI using Typer with rich output formatting
+- Security hardening (input validation, command injection prevention)
+- Pydantic-based configuration validation
+- Rate limiting and CORS configuration
+- Structured JSON logging
+- Comprehensive test suite
+- Renamed from CureIAM to IAMSentry
+
+The original CureIAM project provided the foundational architecture for GCP IAM
+recommendation scanning and processing, built upon the Cloudmarker framework.

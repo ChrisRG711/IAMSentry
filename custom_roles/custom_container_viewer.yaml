@@ -1,0 +1,31 @@
+# Custom Container Viewer Role
+# Replaces: roles/container.admin (429 permissions -> ~15 permissions)
+# Purpose: Minimal read-only access to GKE clusters and containers
+
+title: "Custom Container Viewer"
+description: "Minimal container viewing permissions instead of full container.admin"
+stage: "GA"
+includedPermissions:
+  # Basic container viewing
+  - container.clusters.get
+  - container.clusters.list
+  - container.nodes.get
+  - container.nodes.list
+  - container.pods.get
+  - container.pods.list
+  - container.services.get
+  - container.services.list
+  
+  # Basic resource viewing
+  - resourcemanager.projects.get
+  
+  # Monitoring access for containers
+  - monitoring.timeSeries.list
+  - logging.entries.list
+  
+  # Basic networking for containers
+  - compute.networks.get
+  - compute.subnetworks.get
+  
+  # Secret manager read-only (if needed for containers)
+  - secretmanager.versions.access

@@ -1,0 +1,37 @@
+# Custom Compute Monitor Role  
+# Replaces: roles/compute.viewer (354 permissions -> ~20 permissions)
+# Purpose: Minimal compute monitoring for services like Datadog, Tenable
+
+title: "Custom Compute Monitor"
+description: "Minimal compute monitoring permissions for security/monitoring tools"
+stage: "GA"
+includedPermissions:
+  # Basic compute instance viewing
+  - compute.instances.get
+  - compute.instances.list
+  - compute.instanceGroups.get
+  - compute.instanceGroups.list
+  
+  # Disk and network viewing for monitoring
+  - compute.disks.get
+  - compute.disks.list
+  - compute.networks.get
+  - compute.networks.list
+  - compute.subnetworks.get
+  - compute.subnetworks.list
+  
+  # Machine types and zones
+  - compute.machineTypes.get
+  - compute.machineTypes.list
+  - compute.zones.get
+  - compute.zones.list
+  - compute.regions.get
+  - compute.regions.list
+  
+  # Monitoring and logging
+  - monitoring.metricDescriptors.list
+  - monitoring.timeSeries.list
+  - logging.entries.list
+  
+  # Basic project access
+  - resourcemanager.projects.get

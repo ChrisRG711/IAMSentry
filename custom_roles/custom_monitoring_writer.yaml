@@ -1,0 +1,23 @@
+# Custom Monitoring Writer Role
+# Replaces: roles/monitoring.metricWriter (6 permissions -> ~8 permissions)
+# Purpose: Minimal monitoring write access for application metrics
+
+title: "Custom Monitoring Writer"
+description: "Minimal monitoring write permissions for application metrics"
+stage: "GA"
+includedPermissions:
+  # Metric writing
+  - monitoring.metricDescriptors.create
+  - monitoring.metricDescriptors.get
+  - monitoring.metricDescriptors.list
+  - monitoring.timeSeries.create
+  
+  # Resource monitoring
+  - monitoring.monitoredResourceDescriptors.get
+  - monitoring.monitoredResourceDescriptors.list
+  
+  # Basic project access
+  - resourcemanager.projects.get
+  
+  # Log writing for metrics
+  - logging.logEntries.create

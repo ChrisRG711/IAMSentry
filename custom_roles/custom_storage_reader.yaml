@@ -1,0 +1,25 @@
+# Custom Storage Reader Role
+# Replaces: roles/storage.objectAdmin (28 permissions -> ~10 permissions)
+# Purpose: Read-only storage access instead of full admin
+
+title: "Custom Storage Reader" 
+description: "Read-only storage access instead of full storage.objectAdmin"
+stage: "GA"
+includedPermissions:
+  # Object reading
+  - storage.objects.get
+  - storage.objects.list
+  
+  # Bucket information
+  - storage.buckets.get
+  - storage.buckets.list
+  
+  # Metadata access
+  - storage.objects.getIamPolicy
+  - storage.buckets.getIamPolicy
+  
+  # Basic project access
+  - resourcemanager.projects.get
+  
+  # For applications that need to check bucket existence
+  - storage.buckets.getIamPolicy

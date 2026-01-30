@@ -1,0 +1,63 @@
+title: "GitLab Service Account Custom Role"
+description: "Custom role for GitLab service accounts based on actual usage analysis"
+stage: "GA"
+includedPermissions:
+  # Compute permissions for instance management
+  - compute.disks.create
+  - compute.disks.get
+  - compute.instances.create
+  - compute.instances.get
+  - compute.instances.setLabels
+  
+  # GKE Hub permissions for cluster management
+  - gkehub.gateway.delete
+  - gkehub.gateway.generateCredentials
+  - gkehub.gateway.get
+  - gkehub.gateway.patch
+  - gkehub.gateway.post
+  - gkehub.gateway.put
+  - gkehub.memberships.create
+  - gkehub.memberships.get
+  - gkehub.memberships.list
+  - gkehub.operations.get
+  
+  # Project access
+  - resourcemanager.projects.get
+  
+  # Secret Manager access
+  - secretmanager.versions.access
+
+# Alternative approach using predefined roles (if custom permissions are too granular)
+equivalent_predefined_roles:
+  - roles/artifactregistry.reader
+  - roles/artifactregistry.writer
+  - roles/cloudbuild.builds.editor
+  - roles/compute.admin
+  - roles/gkehub.admin
+  - roles/gkehub.gatewayAdmin
+  - roles/iam.workloadIdentityUser
+  - roles/serviceusage.serviceUsageConsumer
+  - roles/storage.objectAdmin
+  - roles/storage.objectUser
+
+# Recommended minimal role approach
+recommended_minimal_roles:
+  - roles/artifactregistry.writer  # Covers both reader and writer permissions
+  - roles/cloudbuild.builds.editor
+  - roles/gkehub.gatewayAdmin      # Covers both gkehub.admin and gatewayAdmin
+  - roles/iam.workloadIdentityUser
+  - roles/storage.objectAdmin      # Covers both objectAdmin and objectUser
+  - roles/serviceusage.serviceUsageConsumer
+
+# Custom role creation command for gcloud
+gcloud_command: |
+  gcloud iam roles create gitlabCustomRole \
+    --project=foiply-app \
+    --title="GitLab Service Account Custom Role" \
+    --description="Custom role for GitLab service accounts based on actual usage" \
+    --permissions=compute.disks.create,compute.disks.get,compute.instances.create,compute.instances.get,compute.instances.setLabels,gkehub.gateway.delete,gkehub.gateway.generateCredentials,gkehub.gateway.get,gkehub.gateway.patch,gkehub.gateway.post,gkehub.gateway.put,gkehub.memberships.create,gkehub.memberships.get,gkehub.memberships.list,gkehub.operations.get,resourcemanager.projects.get,secretmanager.versions.access
+
+# Service accounts to apply this role to:
+target_service_accounts:
+  - gitlab-5318ef1768e1a92506f3bd@foiply-app.iam.gserviceaccount.com
+  - gitlab@foiply-app.iam.gserviceaccount.com

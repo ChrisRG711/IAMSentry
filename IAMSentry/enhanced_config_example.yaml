@@ -1,0 +1,145 @@
+# Enhanced IAMSentry Configuration with Remediation Capabilities
+# This shows how to add optional remediation to your existing IAMSentry workflow
+
+# Logging configuration (unchanged)
+logger:
+  version: 1
+  disable_existing_loggers: false
+  
+  formatters:
+    simple:
+      format: >-
+          %(asctime)s [%(process)s] [%(processName)s] [%(threadName)s]
+          %(levelname)s %(name)s:%(lineno)d - %(message)s
+      datefmt: "%Y-%m-%d %H:%M:%S"
+
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: simple
+      stream: ext://sys.stdout
+
+    file:
+      class: logging.handlers.TimedRotatingFileHandler
+      formatter: simple
+      filename: ./logs/IAMSentry.log
+      when: midnight
+      encoding: utf8
+      backupCount: 5
+
+  root:
+    level: INFO
+    handlers:
+      - console
+      - file
+
+# Schedule when to run audits
+schedule: "02:00"
+
+# Plugin configurations
+plugins:
+  # Existing GCP IAM Reader (unchanged)
+  gcp_iam_reader:
+    plugin: IAMSentry.plugins.gcp.gcpcloud.GCPCloudIAMRecommendations
+    key_file_path: "C:/Users/chris/source/repos/itsec/IAMSentry/vanta-scanner-key.json"
+    projects: ["foiply-app"]
+    
+  # Enhanced GCP IAM Processor with remediation capabilities
+  gcp_iam_processor:
+    plugin: IAMSentry.plugins.gcp.gcpcloudiam.GCPIAMRecommendationProcessor
+    mode_scan: true
+    mode_enforce: false  # Keep existing safety
+    enforcer:
+      key_file_path: "C:/Users/chris/source/repos/itsec/IAMSentry/vanta-scanner-key.json"
+      blocklist_projects: ["foiply-app"]
+      blocklist_accounts: ["it-sys@documo.com", "vanta-scanner@foiply-app.iam.gserviceaccount.com"]
+      blocklist_account_types: ["serviceAccount"]
+      allowlist_account_types: ["user", "group"]
+      min_safe_to_apply_score_user: 60
+      min_safe_to_apply_score_group: 40
+      min_safe_to_apply_score_SA: 80
+      
+  # NEW: IAM Remediation Processor (Optional)
+  gcp_iam_remediation:
+    plugin: IAMSentry.plugins.gcp.gcpiam_remediation.GCPIAMRemediationProcessor
+    mode_remediate: false    # Set to true to enable remediation analysis
+    dry_run: true           # ALWAYS start with dry_run=true for safety
+    remediation_config:
+      # Safety limits
+      max_changes_per_run: 10
+      require_approval: true
+      auto_create_custom_roles: false
+      
+      # Approval settings (future feature)
+      approval_method: "manual"  # manual, webhook, slack
+      approval_webhook: null
+      
+      # Risk thresholds
+      auto_approve_low_risk: false
+      high_risk_threshold: 80
+      critical_risk_threshold: 100
+      
+      # Custom role management
+      custom_roles_project: "foiply-app"
+      custom_role_prefix: "custom_"
+      
+      # Rollback settings
+      enable_rollback: true
+      rollback_timeout_hours: 24
+
+  # Existing File Storage (enhanced to store remediation results)
+  file_store:
+    plugin: IAMSentry.plugins.files.filestore.FileStore
+    output_dir: "./output"
+    file_format: "json"
+    include_remediation_data: true  # NEW: Include remediation analysis
+
+# Audit definitions with optional remediation
+audits:
+  # Analysis-only audit (existing)
+  gcp_iam_analysis:
+    clouds: [gcp_iam_reader]
+    processors: [gcp_iam_processor]
+    stores: [file_store]
+    alerts: []
+    applyRecommendations: false
+    
+  # NEW: Analysis + Remediation audit (optional)
+  gcp_iam_governance:
+    clouds: [gcp_iam_reader]
+    processors: 
+      - gcp_iam_processor      # Regular analysis
+      - gcp_iam_remediation    # Remediation analysis
+    stores: [file_store]
+    alerts: []
+    applyRecommendations: false  # Remediation handled by remediation processor
+    
+# Runtime configuration
+run:
+  - gcp_iam_analysis          # Default: analysis only
+  # - gcp_iam_governance      # Uncomment to enable remediation analysis
+
+# NEW: Remediation-specific settings
+remediation:
+  # Global remediation settings
+  enabled: false               # Master switch for all remediation
+  default_mode: "dry_run"      # dry_run, simulate, execute
+  
+  # Safety controls
+  safety_checks:
+    require_recent_backup: true
+    max_daily_changes: 50
+    blacklist_critical_accounts: true
+    
+  # Reporting
+  generate_remediation_report: true
+  remediation_report_format: ["json", "csv"]
+  
+  # Integration with external systems
+  notifications:
+    slack_webhook: null
+    email_alerts: []
+    
+  # Audit trail
+  audit_log_retention_days: 90
+  store_remediation_history: true

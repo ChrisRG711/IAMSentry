@@ -1,0 +1,53 @@
+title: "Developer Group Role"
+description: "Custom role for development teams with appropriate access for building and deploying applications"
+stage: "GA"
+includedPermissions:
+# Application development essentials
+- cloudsql.instances.connect
+- cloudsql.databases.list
+- cloudsql.databases.get
+
+# Container and artifact management
+- artifactregistry.repositories.list
+- artifactregistry.repositories.get
+- artifactregistry.packages.list
+- artifactregistry.packages.get
+- artifactregistry.versions.list
+- artifactregistry.versions.get
+
+# Cloud Build for CI/CD
+- cloudbuild.builds.list
+- cloudbuild.builds.get
+- cloudbuild.builds.create
+
+# Storage for application data
+- storage.buckets.list
+- storage.buckets.get
+- storage.objects.list
+- storage.objects.get
+- storage.objects.create
+
+# Secret management (read-only)
+- secretmanager.secrets.list
+- secretmanager.versions.access
+
+# Compute resources (limited)
+- compute.instances.list
+- compute.instances.get
+- compute.zones.list
+- compute.regions.list
+
+# GKE development access
+- container.clusters.list
+- container.clusters.get
+- container.pods.list
+- container.pods.get
+
+# Monitoring and debugging
+- logging.logEntries.list
+- monitoring.timeSeries.list
+- monitoring.metricDescriptors.list
+
+# Basic project access
+- resourcemanager.projects.get
+- serviceusage.services.list

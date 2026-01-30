@@ -1,0 +1,141 @@
+# IAMSentry Configuration Example
+# This file demonstrates how to configure IAMSentry for GCP IAM monitoring
+
+# Logging configuration
+logger:
+  version: 1
+  disable_existing_loggers: false
+  
+  formatters:
+    simple:
+      format: >-
+          %(asctime)s [%(process)s] [%(processName)s] [%(threadName)s]
+          %(levelname)s %(name)s:%(lineno)d - %(message)s
+      datefmt: "%Y-%m-%d %H:%M:%S"
+
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: simple
+      stream: ext://sys.stdout
+
+    file:
+      class: logging.handlers.TimedRotatingFileHandler
+      formatter: simple
+      filename: ./logs/IAMSentry.log
+      when: midnight
+      encoding: utf8
+      backupCount: 5
+
+  root:
+    level: INFO
+    handlers:
+      - console
+      - file
+
+# Schedule when to run audits (24-hour format)
+schedule: "02:00"
+
+# Email notifications (optional)
+email:
+  enabled: false
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  from_email: "your-email@domain.com"
+  to_emails:
+    - "security-team@domain.com"
+
+# Plugin configurations
+plugins:
+  # GCP Cloud Plugin - reads IAM recommendations
+  gcp_iam_reader:
+    plugin: IAMSentry.plugins.gcp.gcpcloud.GCPCloudIAMRecommendations
+    # Path to GCP service account key file
+    key_file_path: "/path/to/your/service-account-key.json"
+    # Projects to scan (empty = all accessible projects)
+    projects: []
+    # Regions to scan
+    regions:
+      - "global"
+      - "us-central1"
+      - "us-east1"
+  
+  # IAM Processor Plugin - processes recommendations and calculates risk scores
+  gcp_iam_processor:
+    plugin: IAMSentry.plugins.gcp.gcpcloudiam.GCPIAMRecommendationProcessor
+    mode_scan: true      # Set to true to analyze recommendations
+    mode_enforce: false  # Set to true to actually apply recommendations (DANGEROUS!)
+    
+    # Enforcement settings (only used if mode_enforce: true)
+    enforcer:
+      # Service account key for making changes
+      key_file_path: "/path/to/your/service-account-key.json"
+      
+      # Projects to NEVER modify
+      blocklist_projects:
+        - "production-project-1"
+        - "critical-infrastructure"
+      
+      # Accounts to NEVER modify  
+      blocklist_accounts:
+        - "admin@company.com"
+        - "terraform-sa@project.iam.gserviceaccount.com"
+      
+      # Account types to NEVER modify
+      blocklist_account_types:
+        - "serviceAccount"
+      
+      # Projects allowed for modifications (empty = all except blocklist)
+      allowlist_projects: []
+      
+      # Account types allowed for modifications
+      allowlist_account_types:
+        - "user"
+        - "group"
+      
+      # Minimum safety scores required to apply recommendations
+      min_safe_to_apply_score_user: 60
+      min_safe_to_apply_score_group: 40
+      min_safe_to_apply_score_SA: 80
+
+  # File Storage Plugin - saves results to files
+  file_store:
+    plugin: IAMSentry.plugins.files.filestore.FileStore
+    output_dir: "./output"
+    file_format: "json"  # json or csv
+    
+  # Elasticsearch Storage Plugin (optional)
+  # elastic_store:
+  #   plugin: IAMSentry.plugins.elastic.esstore.ElasticsearchStore
+  #   host: "localhost"
+  #   port: 9200
+  #   index_prefix: "iamsentry"
+  #   username: "elastic"
+  #   password: "changeme"
+
+# Audit definitions - these define what plugins to use together
+audits:
+  # Main GCP IAM audit
+  gcp_iam_audit:
+    # Cloud plugins to read data from
+    clouds:
+      - gcp_iam_reader
+    
+    # Processors to analyze the data
+    processors:
+      - gcp_iam_processor
+    
+    # Where to store results
+    stores:
+      - file_store
+      # - elastic_store  # Uncomment if using Elasticsearch
+    
+    # Alert plugins (none configured in this example)
+    alerts: []
+    
+    # Whether to apply recommendations automatically (VERY DANGEROUS!)
+    applyRecommendations: false
+
+# Which audits to run
+run:
+  - gcp_iam_audit
