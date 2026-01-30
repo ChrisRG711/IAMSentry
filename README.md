@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/documo/iamsentry/actions/workflows/ci.yml/badge.svg)](https://github.com/documo/iamsentry/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 
 **GCP IAM Security Auditor and Remediation Tool**
 
@@ -90,3 +90,4 @@ flake8 IAMSentry tests
 ## Security
 
 For security concerns, please see [SECURITY.md](SECURITY.md).
+
