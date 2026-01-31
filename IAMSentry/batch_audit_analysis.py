@@ -30,16 +30,15 @@ def load_service_accounts_from_analysis(analysis_file):
     return sorted(list(service_accounts))
 
 def main():
-    project_id = "foiply-app"
+    project_id = "your-gcp-project-id"  # Replace with your GCP project ID
     days_back = 400  # Use full audit log retention
     rate_limit_delay = 3  # 3 seconds between queries to avoid rate limiting
-    
-    # Priority service accounts to analyze first
+
+    # Priority service accounts to analyze first (replace with your service accounts)
     priority_accounts = [
-        "105005824641-compute@developer.gserviceaccount.com",
-        "gitlab@foiply-app.iam.gserviceaccount.com", 
-        "gitlab-5318ef1768e1a92506f3bd@foiply-app.iam.gserviceaccount.com",
-        "documo-app@foiply-app.iam.gserviceaccount.com"
+        "123456789-compute@developer.gserviceaccount.com",
+        "cicd-runner@your-project.iam.gserviceaccount.com",
+        "app-service@your-project.iam.gserviceaccount.com",
     ]
     
     # Load all service accounts from our analysis

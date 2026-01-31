@@ -203,10 +203,18 @@ class TestDashboardEndpoints:
     @pytest.fixture
     def client(self):
         """Create test client."""
+        from unittest.mock import patch
         from fastapi.testclient import TestClient
-        from IAMSentry.dashboard.server import app
 
-        return TestClient(app)
+        with patch.dict(
+            "os.environ",
+            {"IAMSENTRY_AUTH_ENABLED": "false"},
+            clear=False,
+        ):
+            from IAMSentry.dashboard.auth import reload_auth_config
+            reload_auth_config()
+            from IAMSentry.dashboard.server import app
+            yield TestClient(app)
 
     def test_health_endpoint(self, client):
         """Test /api/health endpoint."""

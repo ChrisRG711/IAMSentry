@@ -27,11 +27,63 @@ import time
 from functools import wraps
 from typing import Any, Callable, Iterator, List, Optional, Tuple, TypeVar
 
-import google.auth
-from google.auth.credentials import Credentials
-from google.oauth2 import service_account
-from googleapiclient import discovery
-from googleapiclient.errors import HttpError
+from types import SimpleNamespace
+from typing import TYPE_CHECKING
+
+try:
+    import google.auth as _google_auth
+except Exception:  # pragma: no cover - best-effort optional dependency
+    class _MissingGoogleAuth:
+        class exceptions:
+            class DefaultCredentialsError(Exception):
+                pass
+
+        @staticmethod
+        def default(*args, **kwargs):
+            raise RuntimeError(
+                "google-auth is not installed. Install with: pip install google-auth"
+            )
+
+    _google_auth = _MissingGoogleAuth()
+
+try:
+    from google.oauth2 import service_account as _service_account
+except Exception:  # pragma: no cover - best-effort optional dependency
+    class _MissingServiceAccount:
+        class Credentials:
+            @staticmethod
+            def from_service_account_file(*args, **kwargs):
+                raise RuntimeError(
+                    "google-auth is not installed. Install with: pip install google-auth"
+                )
+
+    _service_account = _MissingServiceAccount()
+
+try:
+    from googleapiclient import discovery as _discovery
+    from googleapiclient.errors import HttpError
+except Exception:  # pragma: no cover - best-effort optional dependency
+    class HttpError(Exception):
+        pass
+
+    class _MissingDiscovery:
+        @staticmethod
+        def build(*args, **kwargs):
+            raise RuntimeError(
+                "google-api-python-client is not installed. "
+                "Install with: pip install google-api-python-client"
+            )
+
+    _discovery = _MissingDiscovery()
+
+google = SimpleNamespace(auth=_google_auth)
+service_account = _service_account
+discovery = _discovery
+
+if TYPE_CHECKING:  # pragma: no cover
+    from google.auth.credentials import Credentials
+else:
+    Credentials = object
 
 from IAMSentry.helpers import hlogging
 from IAMSentry.constants import (
@@ -288,16 +340,29 @@ def build_resource(
     """
     credentials, _ = get_credentials(key_file_path)
 
-    # Build with custom http client for timeout support
-    import httplib2
-    http = httplib2.Http(timeout=timeout)
+    # Build with custom http client for timeout support when available
+    http = None
+    if timeout:
+        try:
+            import httplib2
+            http = httplib2.Http(timeout=timeout)
+        except Exception:
+            _log.warning(
+                "httplib2 not installed; proceeding without custom timeout. "
+                "Install with: pip install httplib2"
+            )
+
+    build_kwargs = {
+        "credentials": credentials,
+        "cache_discovery": False,
+    }
+    if http is not None:
+        build_kwargs["http"] = http
 
     return discovery.build(
         service_name,
         version,
-        credentials=credentials,
-        cache_discovery=False,
-        http=http if timeout else None
+        **build_kwargs
     )
 
 

@@ -52,27 +52,27 @@ excluded_admin_permissions:
 gcloud_commands: |
   # Create the custom role
   gcloud iam roles create sqlDeveloper \
-    --project=foiply-app \
+    --project=your-gcp-project-id \
     --title="SQL Developer Role" \
     --description="Custom role for database developers" \
     --permissions=cloudsql.instances.connect,cloudsql.instances.get,cloudsql.databases.list,cloudsql.databases.get,cloudsql.databases.create,cloudsql.databases.update,cloudsql.instances.executeQuery,cloudsql.operations.list,cloudsql.operations.get,logging.logEntries.list
-  
-  # Assign to Alex Nosov
-  gcloud projects add-iam-policy-binding foiply-app \
-    --member="user:alex.nosov@documo.com" \
-    --role="projects/foiply-app/roles/sqlDeveloper"
-  
+
+  # Assign to a user (replace with actual user email)
+  gcloud projects add-iam-policy-binding your-gcp-project-id \
+    --member="user:developer@example.com" \
+    --role="projects/your-gcp-project-id/roles/sqlDeveloper"
+
   # Remove any existing over-privileged roles
-  gcloud projects remove-iam-policy-binding foiply-app \
-    --member="user:alex.nosov@documo.com" \
+  gcloud projects remove-iam-policy-binding your-gcp-project-id \
+    --member="user:developer@example.com" \
     --role="roles/cloudsql.admin"
 
 # Monitoring and validation
 validation_steps:
-  1. Test database connectivity from Alex's workstation
-  2. Verify he can create/modify development databases
-  3. Confirm he can run analytical queries
-  4. Ensure he cannot modify production instance settings
+  1. Test database connectivity from the user's workstation
+  2. Verify they can create/modify development databases
+  3. Confirm they can run analytical queries
+  4. Ensure they cannot modify production instance settings
   5. Monitor for any permission denied errors in first week
 
 # Escalation path

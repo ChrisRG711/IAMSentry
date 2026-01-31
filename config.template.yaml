@@ -19,8 +19,8 @@
 # gsm://PROJECT_ID/SECRET_NAME/VERSION   - Specific version
 #
 # Example:
-#   password: gsm://foiply-app/iamsentry-db-password
-#   api_key: gsm://foiply-app/api-key/2
+#   password: gsm://your-project-id/iamsentry-db-password
+#   api_key: gsm://your-project-id/api-key/2
 
 # Logging configuration
 logger:
@@ -88,7 +88,7 @@ plugins:
     # key_file_path: /path/to/secure/location/service-account.json
 
     # Projects to scan (empty = all accessible projects)
-    projects: []  # e.g., ["foiply-app", "my-other-project"]
+    projects: []  # e.g., ["my-gcp-project", "my-other-project"]
 
     # Regions to scan
     regions:

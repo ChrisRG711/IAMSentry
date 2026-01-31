@@ -41,18 +41,20 @@ plugins:
   # Existing GCP IAM Reader (unchanged)
   gcp_iam_reader:
     plugin: IAMSentry.plugins.gcp.gcpcloud.GCPCloudIAMRecommendations
-    key_file_path: "C:/Users/chris/source/repos/itsec/IAMSentry/vanta-scanner-key.json"
-    projects: ["foiply-app"]
-    
+    # Use Application Default Credentials (recommended) or specify key file path
+    # key_file_path: "/path/to/service-account-key.json"
+    projects: ["your-gcp-project-id"]
+
   # Enhanced GCP IAM Processor with remediation capabilities
   gcp_iam_processor:
     plugin: IAMSentry.plugins.gcp.gcpcloudiam.GCPIAMRecommendationProcessor
     mode_scan: true
     mode_enforce: false  # Keep existing safety
     enforcer:
-      key_file_path: "C:/Users/chris/source/repos/itsec/IAMSentry/vanta-scanner-key.json"
-      blocklist_projects: ["foiply-app"]
-      blocklist_accounts: ["it-sys@documo.com", "vanta-scanner@foiply-app.iam.gserviceaccount.com"]
+      # Use Application Default Credentials (recommended) or specify key file path
+      # key_file_path: "/path/to/service-account-key.json"
+      blocklist_projects: ["your-gcp-project-id"]
+      blocklist_accounts: ["admin@example.com", "critical-service@your-project.iam.gserviceaccount.com"]
       blocklist_account_types: ["serviceAccount"]
       allowlist_account_types: ["user", "group"]
       min_safe_to_apply_score_user: 60
@@ -80,7 +82,7 @@ plugins:
       critical_risk_threshold: 100
       
       # Custom role management
-      custom_roles_project: "foiply-app"
+      custom_roles_project: "your-gcp-project-id"
       custom_role_prefix: "custom_"
       
       # Rollback settings

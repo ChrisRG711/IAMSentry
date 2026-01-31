@@ -52,12 +52,12 @@ recommended_minimal_roles:
 # Custom role creation command for gcloud
 gcloud_command: |
   gcloud iam roles create gitlabCustomRole \
-    --project=foiply-app \
+    --project=your-gcp-project-id \
     --title="GitLab Service Account Custom Role" \
     --description="Custom role for GitLab service accounts based on actual usage" \
     --permissions=compute.disks.create,compute.disks.get,compute.instances.create,compute.instances.get,compute.instances.setLabels,gkehub.gateway.delete,gkehub.gateway.generateCredentials,gkehub.gateway.get,gkehub.gateway.patch,gkehub.gateway.post,gkehub.gateway.put,gkehub.memberships.create,gkehub.memberships.get,gkehub.memberships.list,gkehub.operations.get,resourcemanager.projects.get,secretmanager.versions.access
 
 # Service accounts to apply this role to:
 target_service_accounts:
-  - gitlab-5318ef1768e1a92506f3bd@foiply-app.iam.gserviceaccount.com
-  - gitlab@foiply-app.iam.gserviceaccount.com
+  - gitlab-runner@your-project.iam.gserviceaccount.com
+  - cicd-service@your-project.iam.gserviceaccount.com
