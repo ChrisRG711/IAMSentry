@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/ChrisRG711/IAMSentry/actions/workflows/ci.yml/badge.svg)](https://github.com/ChrisRG711/IAMSentry/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://github.com/ChrisRG711/IAMSentry/blob/main/Dockerfile)
 
 
@@ -171,4 +170,5 @@ flake8 IAMSentry tests
 ## Security
 
 For security concerns, please see [SECURITY.md](SECURITY.md).
+
 
