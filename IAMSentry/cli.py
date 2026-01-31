@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import List, Optional
 
 import typer
+from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
 from rich.tree import Tree
-from rich import print as rprint
 
 from IAMSentry.constants import VERSION
 
@@ -37,6 +37,7 @@ _quiet_mode = False
 
 class OutputFormat(str, Enum):
     """Output format options."""
+
     table = "table"
     json = "json"
     yaml = "yaml"
@@ -143,10 +144,9 @@ def scan(
 
         iamsentry scan -p project1 -p project2 --format json
     """
-    console.print(Panel.fit(
-        "[bold blue]IAMSentry Scan[/bold blue]",
-        subtitle="IAM Recommendation Scanner"
-    ))
+    console.print(
+        Panel.fit("[bold blue]IAMSentry Scan[/bold blue]", subtitle="IAM Recommendation Scanner")
+    )
 
     # Validate configuration
     if not config.exists():
@@ -194,16 +194,19 @@ def scan(
             # Determine projects to scan
             scan_projects = projects or [project_id] if project_id else []
             if not scan_projects:
-                console.print("[red]Error:[/red] No projects specified and no default project found.")
-                console.print("[dim]Use --project to specify projects or configure ADC with a default project.[/dim]")
+                console.print(
+                    "[red]Error:[/red] No projects specified and no default project found."
+                )
+                console.print(
+                    "[dim]Use --project to specify projects or configure ADC with a default project.[/dim]"
+                )
                 raise typer.Exit(1)
 
             progress.update(task_init, advance=40, completed=100)
 
             # Scan projects
             task_scan = progress.add_task(
-                f"[cyan]Scanning {len(scan_projects)} project(s)...",
-                total=len(scan_projects)
+                f"[cyan]Scanning {len(scan_projects)} project(s)...", total=len(scan_projects)
             )
 
             results = []
@@ -251,13 +254,13 @@ def _display_scan_results(results: list, format: OutputFormat, output: Path):
         table.add_column("Priority", style="magenta")
 
         for r in results[:20]:  # Limit to first 20
-            raw = r.get('raw', {})
+            raw = r.get("raw", {})
             table.add_row(
-                raw.get('project', 'N/A'),
+                raw.get("project", "N/A"),
                 _extract_account(raw),
-                raw.get('recommenderSubtype', 'N/A'),
+                raw.get("recommenderSubtype", "N/A"),
                 _extract_action(raw),
-                raw.get('priority', 'N/A'),
+                raw.get("priority", "N/A"),
             )
 
         if len(results) > 20:
@@ -267,14 +270,15 @@ def _display_scan_results(results: list, format: OutputFormat, output: Path):
 
     elif format == OutputFormat.json:
         output_file = output / f"scan_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(results, f, indent=2, default=str)
         console.print(f"[green]Results saved to:[/green] {output_file}")
 
     elif format == OutputFormat.yaml:
         import yaml
+
         output_file = output / f"scan_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.yaml"
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             yaml.dump(results, f, default_flow_style=False)
         console.print(f"[green]Results saved to:[/green] {output_file}")
 
@@ -282,22 +286,22 @@ def _display_scan_results(results: list, format: OutputFormat, output: Path):
 def _extract_account(raw: dict) -> str:
     """Extract account from recommendation."""
     try:
-        ops = raw.get('content', {}).get('operationGroups', [{}])[0].get('operations', [])
+        ops = raw.get("content", {}).get("operationGroups", [{}])[0].get("operations", [])
         for op in ops:
-            if op.get('action') == 'remove':
-                return op.get('pathFilters', {}).get('/iamPolicy/bindings/*/members/*', 'N/A')
+            if op.get("action") == "remove":
+                return op.get("pathFilters", {}).get("/iamPolicy/bindings/*/members/*", "N/A")
     except Exception:
         pass
-    return 'N/A'
+    return "N/A"
 
 
 def _extract_action(raw: dict) -> str:
     """Extract recommended action."""
-    subtype = raw.get('recommenderSubtype', '')
-    if subtype == 'REMOVE_ROLE':
-        return 'Remove role'
-    elif subtype == 'REPLACE_ROLE':
-        return 'Replace role'
+    subtype = raw.get("recommenderSubtype", "")
+    if subtype == "REMOVE_ROLE":
+        return "Remove role"
+    elif subtype == "REPLACE_ROLE":
+        return "Replace role"
     return subtype
 
 
@@ -340,10 +344,9 @@ def analyze(
 
         iamsentry analyze results.json --type serviceAccount
     """
-    console.print(Panel.fit(
-        "[bold blue]IAMSentry Analyze[/bold blue]",
-        subtitle="Risk Score Analysis"
-    ))
+    console.print(
+        Panel.fit("[bold blue]IAMSentry Analyze[/bold blue]", subtitle="Risk Score Analysis")
+    )
 
     # Load input file
     with open(input_file) as f:
@@ -369,13 +372,13 @@ def analyze(
         for record in results:
             try:
                 for processed in processor.eval(record):
-                    score = processed.get('score', {})
-                    proc = processed.get('processor', {})
+                    score = processed.get("score", {})
+                    proc = processed.get("processor", {})
 
                     # Apply filters
-                    if score.get('risk_score', 0) < min_risk:
+                    if score.get("risk_score", 0) < min_risk:
                         continue
-                    if account_type and proc.get('account_type') != account_type:
+                    if account_type and proc.get("account_type") != account_type:
                         continue
 
                     analyzed.append(processed)
@@ -397,15 +400,15 @@ def analyze(
         table.add_column("Action", style="magenta")
 
         for r in analyzed[:30]:
-            proc = r.get('processor', {})
-            score = r.get('score', {})
+            proc = r.get("processor", {})
+            score = r.get("score", {})
             table.add_row(
-                proc.get('account_id', 'N/A')[:40],
-                proc.get('account_type', 'N/A'),
-                str(score.get('risk_score', 0)),
+                proc.get("account_id", "N/A")[:40],
+                proc.get("account_type", "N/A"),
+                str(score.get("risk_score", 0)),
                 f"{score.get('over_privilege_score', 0)}%",
-                str(score.get('safe_to_apply_recommendation_score', 0)),
-                proc.get('recommendation_recommender_subtype', 'N/A'),
+                str(score.get("safe_to_apply_recommendation_score", 0)),
+                proc.get("recommendation_recommender_subtype", "N/A"),
             )
 
         console.print(table)
@@ -458,10 +461,9 @@ def remediate(
 
         iamsentry remediate analyzed.json --execute --no-confirm
     """
-    console.print(Panel.fit(
-        "[bold red]IAMSentry Remediate[/bold red]",
-        subtitle="IAM Policy Remediation"
-    ))
+    console.print(
+        Panel.fit("[bold red]IAMSentry Remediate[/bold red]", subtitle="IAM Policy Remediation")
+    )
 
     if not dry_run:
         console.print("[bold red]WARNING:[/bold red] Execute mode enabled!")
@@ -486,9 +488,9 @@ def remediate(
         mode_remediate=True,
         dry_run=dry_run,
         remediation_config={
-            'max_changes_per_run': max_changes,
-            'require_approval': confirm,
-        }
+            "max_changes_per_run": max_changes,
+            "require_approval": confirm,
+        },
     )
 
     changes = []
@@ -508,15 +510,15 @@ def remediate(
 
             try:
                 for processed in processor.eval(record):
-                    rem = processed.get('remediation', {})
-                    score = processed.get('score', {})
+                    rem = processed.get("remediation", {})
+                    score = processed.get("score", {})
 
                     # Check safety score
-                    safe_score = score.get('safe_to_apply_recommendation_score', 0)
+                    safe_score = score.get("safe_to_apply_recommendation_score", 0)
                     if safe_score < min_safe_score:
                         continue
 
-                    if rem.get('execution_result'):
+                    if rem.get("execution_result"):
                         changes.append(processed)
 
             except Exception as e:
@@ -525,7 +527,9 @@ def remediate(
             progress.advance(task)
 
     # Display results
-    console.print(f"\n[bold]{'Simulated' if dry_run else 'Applied'} {len(changes)} change(s)[/bold]\n")
+    console.print(
+        f"\n[bold]{'Simulated' if dry_run else 'Applied'} {len(changes)} change(s)[/bold]\n"
+    )
 
     if changes:
         table = Table(title="Remediation Results")
@@ -535,13 +539,13 @@ def remediate(
         table.add_column("Details", style="dim")
 
         for c in changes:
-            rem = c.get('remediation', {})
-            result = rem.get('execution_result', {})
+            rem = c.get("remediation", {})
+            result = rem.get("execution_result", {})
             table.add_row(
-                rem.get('account_id', 'N/A')[:40],
-                rem.get('recommended_action', 'N/A'),
-                result.get('status', 'N/A'),
-                str(result.get('details', {}))[:50],
+                rem.get("account_id", "N/A")[:40],
+                rem.get("recommended_action", "N/A"),
+                result.get("status", "N/A"),
+                str(result.get("details", {}))[:50],
             )
 
         console.print(table)
@@ -562,15 +566,13 @@ def status(
     Displays authentication status, configured projects, and
     recent scan history.
     """
-    console.print(Panel.fit(
-        "[bold blue]IAMSentry Status[/bold blue]",
-        subtitle="System Status"
-    ))
+    console.print(Panel.fit("[bold blue]IAMSentry Status[/bold blue]", subtitle="System Status"))
 
     # Authentication status
     console.print("\n[bold]Authentication[/bold]")
     try:
         from IAMSentry.plugins.gcp import util_gcp
+
         credentials, project_id = util_gcp.get_credentials()
 
         auth_table = Table(show_header=False)
@@ -580,7 +582,7 @@ def status(
         auth_table.add_row("Status", "[green]✓ Authenticated[/green]")
         auth_table.add_row("Default Project", project_id or "[dim]Not set[/dim]")
 
-        if hasattr(credentials, 'service_account_email'):
+        if hasattr(credentials, "service_account_email"):
             auth_table.add_row("Service Account", credentials.service_account_email)
         else:
             auth_table.add_row("Auth Type", "Application Default Credentials")
@@ -596,6 +598,7 @@ def status(
     if config.exists():
         try:
             from IAMSentry.config_models import IAMSentryConfig
+
             cfg = IAMSentryConfig.from_yaml(str(config))
 
             config_table = Table(show_header=False)
@@ -654,7 +657,7 @@ def init(
         console.print("[dim]Use --force to overwrite.[/dim]")
         raise typer.Exit(1)
 
-    config_template = '''# IAMSentry Configuration
+    config_template = """# IAMSentry Configuration
 # Generated by: iamsentry init
 
 # Logging configuration
@@ -696,9 +699,9 @@ audits:
 # Audits to run
 run:
   - gcp_iam_audit
-'''
+"""
 
-    with open(output, 'w') as f:
+    with open(output, "w") as f:
         f.write(config_template)
 
     console.print(f"[green]✓[/green] Configuration file created: {output}")
@@ -735,10 +738,9 @@ def validate(
 
     [dim]Run this before your first scan to catch issues early.[/dim]
     """
-    console.print(Panel.fit(
-        "[bold blue]IAMSentry Pre-flight Validation[/bold blue]",
-        border_style="blue"
-    ))
+    console.print(
+        Panel.fit("[bold blue]IAMSentry Pre-flight Validation[/bold blue]", border_style="blue")
+    )
 
     all_passed = True
     checks_run = 0
@@ -754,6 +756,7 @@ def validate(
         # Validate YAML syntax
         try:
             import yaml
+
             with open(config) as f:
                 cfg_data = yaml.safe_load(f)
             console.print(f"  [green]✓[/green] YAML syntax valid")
@@ -763,6 +766,7 @@ def validate(
             # Validate with Pydantic models
             try:
                 from IAMSentry.config_models import IAMSentryConfig
+
                 IAMSentryConfig.from_dict(cfg_data)
                 console.print(f"  [green]✓[/green] Configuration schema valid")
                 checks_passed += 1
@@ -790,7 +794,7 @@ def validate(
         credentials, project = default()
         auth_type = "Application Default Credentials"
 
-        if hasattr(credentials, 'service_account_email'):
+        if hasattr(credentials, "service_account_email"):
             auth_type = f"Service Account ({credentials.service_account_email})"
 
         console.print(f"  [green]✓[/green] Authenticated via {auth_type}")
@@ -816,13 +820,13 @@ def validate(
     console.print("\n[bold]3. GCP API Connectivity[/bold]")
     checks_run += 1
     try:
-        from googleapiclient.discovery import build
         from google.auth import default
+        from googleapiclient.discovery import build
 
         credentials, _ = default()
 
         # Test Resource Manager API (for project listing)
-        service = build('cloudresourcemanager', 'v1', credentials=credentials)
+        service = build("cloudresourcemanager", "v1", credentials=credentials)
         # Just build the service to verify connectivity
         console.print(f"  [green]✓[/green] Cloud Resource Manager API accessible")
         checks_passed += 1
@@ -830,7 +834,7 @@ def validate(
         # Test Recommender API
         checks_run += 1
         try:
-            recommender_service = build('recommender', 'v1', credentials=credentials)
+            recommender_service = build("recommender", "v1", credentials=credentials)
             console.print(f"  [green]✓[/green] Recommender API accessible")
             checks_passed += 1
         except Exception as e:
@@ -896,19 +900,23 @@ def validate(
     # Summary
     console.print("\n" + "─" * 50)
     if all_passed:
-        console.print(Panel.fit(
-            f"[bold green]✓ All checks passed![/bold green]\n\n"
-            f"[dim]{checks_passed}/{checks_run} checks passed[/dim]\n\n"
-            f"You're ready to run: [cyan]iamsentry scan --config {config}[/cyan]",
-            border_style="green"
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold green]✓ All checks passed![/bold green]\n\n"
+                f"[dim]{checks_passed}/{checks_run} checks passed[/dim]\n\n"
+                f"You're ready to run: [cyan]iamsentry scan --config {config}[/cyan]",
+                border_style="green",
+            )
+        )
     else:
-        console.print(Panel.fit(
-            f"[bold red]✗ Some checks failed[/bold red]\n\n"
-            f"[dim]{checks_passed}/{checks_run} checks passed[/dim]\n\n"
-            f"Please fix the issues above before running a scan.",
-            border_style="red"
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold red]✗ Some checks failed[/bold red]\n\n"
+                f"[dim]{checks_passed}/{checks_run} checks passed[/dim]\n\n"
+                f"Please fix the issues above before running a scan.",
+                border_style="red",
+            )
+        )
         raise typer.Exit(1)
 
 

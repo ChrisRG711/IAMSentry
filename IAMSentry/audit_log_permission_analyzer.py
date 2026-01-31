@@ -25,15 +25,14 @@ _log = hlogging.get_logger(__name__)
 
 # Validation patterns
 SERVICE_ACCOUNT_PATTERN = re.compile(
-    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.iam\.gserviceaccount\.com$'
+    r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.iam\.gserviceaccount\.com$"
 )
-PROJECT_ID_PATTERN = re.compile(
-    r'^[a-z][a-z0-9-]{4,28}[a-z0-9]$'
-)
+PROJECT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")
 
 
 class InputValidationError(ValueError):
     """Raised when input validation fails."""
+
     pass
 
 
@@ -177,16 +176,11 @@ class AuditLogPermissionAnalyzer:
         self.rate_limit_delay = max(0, min(rate_limit_delay, 60))  # Cap at 60s
 
         # Verify gcloud is available
-        if not shutil.which('gcloud'):
-            raise RuntimeError(
-                "gcloud CLI not found. Please install the Google Cloud SDK."
-            )
+        if not shutil.which("gcloud"):
+            raise RuntimeError("gcloud CLI not found. Please install the Google Cloud SDK.")
 
     def query_audit_logs(
-        self,
-        service_account: str,
-        days_back: int = 400,
-        max_results: int = 1000
+        self, service_account: str, days_back: int = 400, max_results: int = 1000
     ) -> List[Dict[str, Any]]:
         """Query audit logs for a specific service account.
 
@@ -211,14 +205,14 @@ class AuditLogPermissionAnalyzer:
         start_date = end_date - timedelta(days=days_back)
 
         # Format timestamps
-        start_timestamp = start_date.strftime('%Y-%m-%dT%H:%M:%SZ')
-        end_timestamp = end_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_timestamp = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_timestamp = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         _log.info(
-            'Querying audit logs for %s from %s to %s',
+            "Querying audit logs for %s from %s to %s",
             hlogging.obfuscated(service_account),
-            start_date.strftime('%Y-%m-%d'),
-            end_date.strftime('%Y-%m-%d')
+            start_date.strftime("%Y-%m-%d"),
+            end_date.strftime("%Y-%m-%d"),
         )
 
         # Build the logging query filter
@@ -231,13 +225,13 @@ class AuditLogPermissionAnalyzer:
 
         # Build command as argument list (NOT shell string) to prevent injection
         cmd = [
-            'gcloud',
-            'logging',
-            'read',
+            "gcloud",
+            "logging",
+            "read",
             query_filter,
-            f'--project={self.project_id}',
-            f'--limit={max_results}',
-            '--format=json',
+            f"--project={self.project_id}",
+            f"--limit={max_results}",
+            "--format=json",
         ]
 
         try:
@@ -253,39 +247,30 @@ class AuditLogPermissionAnalyzer:
             if result.returncode != 0:
                 # Don't log full stderr as it may contain sensitive info
                 _log.warning(
-                    'Error querying logs for %s (exit code %d)',
+                    "Error querying logs for %s (exit code %d)",
                     hlogging.obfuscated(service_account),
-                    result.returncode
+                    result.returncode,
                 )
                 return []
 
             if result.stdout.strip():
                 return json.loads(result.stdout)
             else:
-                _log.info(
-                    'No audit log entries found for %s',
-                    hlogging.obfuscated(service_account)
-                )
+                _log.info("No audit log entries found for %s", hlogging.obfuscated(service_account))
                 return []
 
         except subprocess.TimeoutExpired:
-            _log.warning(
-                'Query timeout for %s',
-                hlogging.obfuscated(service_account)
-            )
+            _log.warning("Query timeout for %s", hlogging.obfuscated(service_account))
             return []
         except json.JSONDecodeError as e:
             _log.warning(
-                'Failed to parse JSON response for %s: %s',
+                "Failed to parse JSON response for %s: %s",
                 hlogging.obfuscated(service_account),
-                type(e).__name__
+                type(e).__name__,
             )
             return []
 
-    def extract_permissions_from_logs(
-        self,
-        log_entries: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def extract_permissions_from_logs(self, log_entries: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Extract actual permissions used from audit log entries.
 
         Arguments:
@@ -304,19 +289,19 @@ class AuditLogPermissionAnalyzer:
         services_used = set()
 
         for entry in log_entries:
-            if 'protoPayload' not in entry:
+            if "protoPayload" not in entry:
                 continue
 
-            payload = entry['protoPayload']
+            payload = entry["protoPayload"]
 
             # Extract method name (API call)
-            if 'methodName' in payload:
-                method = payload['methodName']
+            if "methodName" in payload:
+                method = payload["methodName"]
                 api_calls[method] += 1
 
                 # Extract service from method name
-                if '.' in method:
-                    service = method.split('.')[0]
+                if "." in method:
+                    service = method.split(".")[0]
                     services_used.add(service)
 
                 # Map API calls to IAM permissions
@@ -325,11 +310,11 @@ class AuditLogPermissionAnalyzer:
                     permissions_used.add(permission)
 
         return {
-            'permissions_used': sorted(permissions_used),
-            'api_calls': dict(api_calls.most_common(20)),
-            'services_used': sorted(services_used),
-            'total_api_calls': sum(api_calls.values()),
-            'unique_api_calls': len(api_calls)
+            "permissions_used": sorted(permissions_used),
+            "api_calls": dict(api_calls.most_common(20)),
+            "services_used": sorted(services_used),
+            "total_api_calls": sum(api_calls.values()),
+            "unique_api_calls": len(api_calls),
         }
 
     def _api_call_to_permission(self, method_name: str) -> Optional[str]:
@@ -346,34 +331,34 @@ class AuditLogPermissionAnalyzer:
         # Common permission mappings
         permission_mappings = {
             # Compute
-            'compute.instances.get': 'compute.instances.get',
-            'compute.instances.list': 'compute.instances.list',
-            'compute.instances.create': 'compute.instances.create',
-            'compute.instances.delete': 'compute.instances.delete',
-            'compute.disks.get': 'compute.disks.get',
-            'compute.disks.create': 'compute.disks.create',
+            "compute.instances.get": "compute.instances.get",
+            "compute.instances.list": "compute.instances.list",
+            "compute.instances.create": "compute.instances.create",
+            "compute.instances.delete": "compute.instances.delete",
+            "compute.disks.get": "compute.disks.get",
+            "compute.disks.create": "compute.disks.create",
             # Storage
-            'storage.objects.get': 'storage.objects.get',
-            'storage.objects.create': 'storage.objects.create',
-            'storage.objects.delete': 'storage.objects.delete',
-            'storage.objects.list': 'storage.objects.list',
-            'storage.buckets.get': 'storage.buckets.get',
+            "storage.objects.get": "storage.objects.get",
+            "storage.objects.create": "storage.objects.create",
+            "storage.objects.delete": "storage.objects.delete",
+            "storage.objects.list": "storage.objects.list",
+            "storage.buckets.get": "storage.buckets.get",
             # Cloud SQL
-            'sql.instances.get': 'cloudsql.instances.get',
-            'sql.instances.connect': 'cloudsql.instances.connect',
+            "sql.instances.get": "cloudsql.instances.get",
+            "sql.instances.connect": "cloudsql.instances.connect",
             # Logging
-            'logging.logEntries.create': 'logging.logEntries.create',
-            'logging.logEntries.list': 'logging.logEntries.list',
+            "logging.logEntries.create": "logging.logEntries.create",
+            "logging.logEntries.list": "logging.logEntries.list",
             # Monitoring
-            'monitoring.timeSeries.create': 'monitoring.timeSeries.create',
-            'monitoring.metricDescriptors.create': 'monitoring.metricDescriptors.create',
+            "monitoring.timeSeries.create": "monitoring.timeSeries.create",
+            "monitoring.metricDescriptors.create": "monitoring.metricDescriptors.create",
             # Artifact Registry
-            'artifactregistry.repositories.downloadArtifacts': 'artifactregistry.repositories.downloadArtifacts',
-            'artifactregistry.repositories.uploadArtifacts': 'artifactregistry.repositories.uploadArtifacts',
+            "artifactregistry.repositories.downloadArtifacts": "artifactregistry.repositories.downloadArtifacts",
+            "artifactregistry.repositories.uploadArtifacts": "artifactregistry.repositories.uploadArtifacts",
             # Secret Manager
-            'secretmanager.versions.access': 'secretmanager.versions.access',
+            "secretmanager.versions.access": "secretmanager.versions.access",
             # Resource Manager
-            'cloudresourcemanager.projects.get': 'resourcemanager.projects.get',
+            "cloudresourcemanager.projects.get": "resourcemanager.projects.get",
         }
 
         # Direct mapping
@@ -381,24 +366,20 @@ class AuditLogPermissionAnalyzer:
             return permission_mappings[method_name]
 
         # Pattern-based mapping for common cases
-        if method_name.startswith('compute.'):
-            parts = method_name.split('.')
+        if method_name.startswith("compute."):
+            parts = method_name.split(".")
             if len(parts) >= 3:
                 return f"compute.{parts[1]}.{parts[2]}"
 
-        elif method_name.startswith('storage.'):
-            parts = method_name.split('.')
+        elif method_name.startswith("storage."):
+            parts = method_name.split(".")
             if len(parts) >= 3:
                 return f"storage.{parts[1]}.{parts[2]}"
 
         # Return the method name as approximation if no mapping found
         return method_name
 
-    def analyze_service_account(
-        self,
-        service_account: str,
-        days_back: int = 400
-    ) -> Dict[str, Any]:
+    def analyze_service_account(self, service_account: str, days_back: int = 400) -> Dict[str, Any]:
         """Analyze a single service account's permission usage.
 
         Arguments:
@@ -415,34 +396,34 @@ class AuditLogPermissionAnalyzer:
         service_account = validate_service_account(service_account)
         days_back = validate_days_back(days_back)
 
-        _log.info('Analyzing service account: %s', hlogging.obfuscated(service_account))
+        _log.info("Analyzing service account: %s", hlogging.obfuscated(service_account))
 
         # Query audit logs
         log_entries = self.query_audit_logs(service_account, days_back)
 
         if not log_entries:
             return {
-                'service_account': service_account,
-                'permissions_used': [],
-                'api_calls': {},
-                'services_used': [],
-                'total_api_calls': 0,
-                'analysis_period_days': days_back,
-                'status': 'no_logs_found'
+                "service_account": service_account,
+                "permissions_used": [],
+                "api_calls": {},
+                "services_used": [],
+                "total_api_calls": 0,
+                "analysis_period_days": days_back,
+                "status": "no_logs_found",
             }
 
         # Extract permissions from logs
         analysis = self.extract_permissions_from_logs(log_entries)
-        analysis['service_account'] = service_account
-        analysis['analysis_period_days'] = days_back
-        analysis['log_entries_found'] = len(log_entries)
-        analysis['status'] = 'success'
+        analysis["service_account"] = service_account
+        analysis["analysis_period_days"] = days_back
+        analysis["log_entries_found"] = len(log_entries)
+        analysis["status"] = "success"
 
         _log.info(
-            'Analysis complete for %s: %d log entries, %d unique permissions',
+            "Analysis complete for %s: %d log entries, %d unique permissions",
             hlogging.obfuscated(service_account),
             len(log_entries),
-            len(analysis['permissions_used'])
+            len(analysis["permissions_used"]),
         )
 
         return analysis
@@ -451,8 +432,12 @@ class AuditLogPermissionAnalyzer:
 def main():
     """CLI entry point for audit log analysis."""
     if len(sys.argv) < 2:
-        print("Usage: python audit_log_permission_analyzer.py <service_account_email> [days_back] [project_id]")
-        print("Example: python audit_log_permission_analyzer.py sa@project.iam.gserviceaccount.com 400 my-project")
+        print(
+            "Usage: python audit_log_permission_analyzer.py <service_account_email> [days_back] [project_id]"
+        )
+        print(
+            "Example: python audit_log_permission_analyzer.py sa@project.iam.gserviceaccount.com 400 my-project"
+        )
         sys.exit(1)
 
     service_account = sys.argv[1]
@@ -475,15 +460,15 @@ def main():
         print(f"  Total API calls: {result['total_api_calls']}")
         print(f"  Unique permissions: {len(result['permissions_used'])}")
 
-        if result['permissions_used']:
+        if result["permissions_used"]:
             print(f"\nTop Permissions Used:")
-            for perm in result['permissions_used'][:10]:
+            for perm in result["permissions_used"][:10]:
                 print(f"  - {perm}")
 
         # Save results
-        safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', service_account)
+        safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", service_account)
         output_file = f"audit_analysis_{safe_name}.json"
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(result, f, indent=2)
 
         print(f"\nResults saved to: {output_file}")

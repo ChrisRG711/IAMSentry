@@ -8,7 +8,7 @@ import os.path
 class FileStore:
     """A plugin to store records on the filesystem."""
 
-    def __init__(self, path='/tmp/IAMSentry'):
+    def __init__(self, path="/tmp/IAMSentry"):
         """Create an instance of :class:`FileStore` plugin.
 
         Arguments:
@@ -43,25 +43,25 @@ class FileStore:
             record (dict): Data to write to the file system.
 
         """
-        worker_name = record.get('com', {}).get('origin_worker', 'no_worker')
+        worker_name = record.get("com", {}).get("origin_worker", "no_worker")
 
-        tmp_file_path = os.path.join(self._path, worker_name) + '.tmp'
+        tmp_file_path = os.path.join(self._path, worker_name) + ".tmp"
         if worker_name not in self._worker_names:
             # If this is the first time we have encountered this
             # worker_name, we create a new file for it and write an
             # opening bracket to start a JSON array.
-            with open(tmp_file_path, 'w') as f:
-                f.write('[\n')
-            delim = ''
+            with open(tmp_file_path, "w") as f:
+                f.write("[\n")
+            delim = ""
         else:
             # If this is not the first record of its record type, then
             # we need to separate this record from the previous record
             # with a comma to form a valid JSON array.
-            delim = ',\n'
+            delim = ",\n"
 
         # Write the record dictionary as JSON object literal.
         self._worker_names.add(worker_name)
-        with open(tmp_file_path, 'a') as f:
+        with open(tmp_file_path, "a") as f:
             f.write(delim + json.dumps(record, indent=2))
 
     def done(self):
@@ -79,10 +79,10 @@ class FileStore:
         """
         for worker_name in self._worker_names:
             # End the JSON array by writing a closing bracket.
-            tmp_file_path = os.path.join(self._path, worker_name) + '.tmp'
-            with open(tmp_file_path, 'a') as f:
-                f.write('\n]\n')
+            tmp_file_path = os.path.join(self._path, worker_name) + ".tmp"
+            with open(tmp_file_path, "a") as f:
+                f.write("\n]\n")
 
             # Rename the temporary file to a JSON file.
-            json_file_path = os.path.join(self._path, worker_name) + '.json'
+            json_file_path = os.path.join(self._path, worker_name) + ".json"
             os.replace(tmp_file_path, json_file_path)

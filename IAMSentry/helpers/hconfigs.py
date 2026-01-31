@@ -104,7 +104,7 @@ class Config:
         """Return configuration values."""
         return self._data.values()
 
-    def resolve_secrets(self) -> 'Config':
+    def resolve_secrets(self) -> "Config":
         """Resolve all gsm:// secret references in the configuration.
 
         This method replaces all gsm:// references with their actual
@@ -121,20 +121,19 @@ class Config:
             >>> config.resolve_secrets()  # Resolves all gsm:// references
         """
         if self._secrets_resolved:
-            _log.debug('Secrets already resolved, skipping')
+            _log.debug("Secrets already resolved, skipping")
             return self
 
         try:
             from IAMSentry.helpers import hsecrets
+
             self._data = hsecrets.resolve_secrets(self._data)
             self._secrets_resolved = True
-            _log.debug('Configuration secrets resolved successfully')
+            _log.debug("Configuration secrets resolved successfully")
         except ImportError:
-            _log.warning(
-                'hsecrets module not available, gsm:// references will not be resolved'
-            )
+            _log.warning("hsecrets module not available, gsm:// references will not be resolved")
         except Exception as e:
-            _log.error('Failed to resolve secrets: %s', e)
+            _log.error("Failed to resolve secrets: %s", e)
             raise
 
         return self
@@ -146,11 +145,8 @@ class Config:
 
     @classmethod
     def load(
-        cls,
-        filepath: Union[str, Path],
-        resolve_secrets: bool = False,
-        validate: bool = True
-    ) -> 'Config':
+        cls, filepath: Union[str, Path], resolve_secrets: bool = False, validate: bool = True
+    ) -> "Config":
         """Load configuration from a YAML file.
 
         The user configuration is merged with the base configuration,
@@ -195,7 +191,7 @@ class Config:
                 raise FileNotFoundError(f"Configuration file not found: {filepath}")
 
         # Load user configuration
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             user_config = yaml.safe_load(f) or {}
 
         # Start with base configuration
@@ -206,6 +202,7 @@ class Config:
         if validate and validate_env:
             try:
                 from IAMSentry.config_models import IAMSentryConfig
+
                 IAMSentryConfig.from_dict(merged_config)
             except Exception as e:
                 _log.error("Configuration validation failed: %s", e)

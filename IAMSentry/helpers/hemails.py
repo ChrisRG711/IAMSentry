@@ -23,7 +23,7 @@ def send(
     username: Optional[str] = None,
     password: Optional[str] = None,
     tls: bool = True,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> bool:
     """Send email notification.
 
@@ -58,10 +58,9 @@ def send(
     # Check if we have minimum configuration to send
     if not all([host, to, sender]):
         _log.debug(
-            'Email not configured (missing host, to, or sender). '
-            'Logging notification instead.'
+            "Email not configured (missing host, to, or sender). " "Logging notification instead."
         )
-        _log.info('Email notification: %s', content[:200] if content else '(empty)')
+        _log.info("Email notification: %s", content[:200] if content else "(empty)")
         return True
 
     # Set default port
@@ -70,15 +69,15 @@ def send(
 
     # Set default subject
     if subject is None:
-        subject = 'IAMSentry Notification'
+        subject = "IAMSentry Notification"
 
     try:
         # Create message
         msg = MIMEMultipart()
-        msg['From'] = sender
-        msg['To'] = to
-        msg['Subject'] = subject
-        msg.attach(MIMEText(content, 'plain'))
+        msg["From"] = sender
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg.attach(MIMEText(content, "plain"))
 
         # Connect and send
         with smtplib.SMTP(host, port, timeout=30) as server:
@@ -90,19 +89,19 @@ def send(
 
             server.send_message(msg)
 
-        _log.info('Email sent successfully to %s', to)
+        _log.info("Email sent successfully to %s", to)
         return True
 
     except smtplib.SMTPAuthenticationError as e:
-        _log.error('SMTP authentication failed: %s', e)
+        _log.error("SMTP authentication failed: %s", e)
         return False
 
     except smtplib.SMTPException as e:
-        _log.error('SMTP error sending email: %s', e)
+        _log.error("SMTP error sending email: %s", e)
         return False
 
     except Exception as e:
-        _log.error('Unexpected error sending email: %s: %s', type(e).__name__, e)
+        _log.error("Unexpected error sending email: %s: %s", type(e).__name__, e)
         return False
 
 
@@ -130,8 +129,8 @@ def send_dict(config: Optional[Dict[str, Any]], content: str) -> bool:
         True
     """
     if config is None:
-        _log.debug('No email configuration provided, logging notification')
-        _log.info('Email notification: %s', content[:200] if content else '(empty)')
+        _log.debug("No email configuration provided, logging notification")
+        _log.info("Email notification: %s", content[:200] if content else "(empty)")
         return True
 
     return send(content=content, **config)

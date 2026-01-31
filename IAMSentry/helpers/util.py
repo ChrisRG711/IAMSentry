@@ -5,7 +5,7 @@ This module provides common utility functions used across the IAMSentry package.
 
 from typing import Any, Dict, List, Optional, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
@@ -55,11 +55,7 @@ def deep_merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str
     result = base.copy()
 
     for key, value in override.items():
-        if (
-            key in result
-            and isinstance(result[key], dict)
-            and isinstance(value, dict)
-        ):
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = deep_merge_dicts(result[key], value)
         else:
             result[key] = value
@@ -94,11 +90,7 @@ def safe_get(data: Dict[str, Any], *keys: str, default: Any = None) -> Any:
     return current
 
 
-def flatten_dict(
-    data: Dict[str, Any],
-    separator: str = '.',
-    prefix: str = ''
-) -> Dict[str, Any]:
+def flatten_dict(data: Dict[str, Any], separator: str = ".", prefix: str = "") -> Dict[str, Any]:
     """Flatten nested dictionary to single level.
 
     Arguments:
@@ -141,7 +133,7 @@ def chunk_list(items: List[T], chunk_size: int) -> List[List[T]]:
         >>> chunk_list([1, 2, 3, 4, 5], 2)
         [[1, 2], [3, 4], [5]]
     """
-    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+    return [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
 
 
 def filter_none(data: Dict[str, Any]) -> Dict[str, Any]:

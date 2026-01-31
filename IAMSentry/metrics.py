@@ -37,20 +37,22 @@ _METRICS_PREFIX = os.environ.get("IAMSENTRY_METRICS_PREFIX", "iamsentry")
 
 try:
     from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        REGISTRY,
+        CollectorRegistry,
         Counter,
         Gauge,
         Histogram,
         Info,
-        CollectorRegistry,
         generate_latest,
-        CONTENT_TYPE_LATEST,
-        REGISTRY,
     )
+
     _PROMETHEUS_AVAILABLE = True
 except ImportError:
     # Create dummy classes if prometheus_client not installed
     class _DummyMetric:
         """Dummy metric that does nothing when prometheus_client is unavailable."""
+
         def __init__(self, *args, **kwargs):
             pass
 
@@ -99,10 +101,13 @@ APP_INFO = Info(
 
 if _PROMETHEUS_AVAILABLE and _METRICS_ENABLED:
     from IAMSentry.constants import VERSION
-    APP_INFO.info({
-        "version": VERSION,
-        "metrics_prefix": _METRICS_PREFIX,
-    })
+
+    APP_INFO.info(
+        {
+            "version": VERSION,
+            "metrics_prefix": _METRICS_PREFIX,
+        }
+    )
 
 
 # ============================================
@@ -237,6 +242,7 @@ GCP_API_ERRORS_TOTAL = Counter(
 # ============================================
 # Helper Functions
 # ============================================
+
 
 def record_scan(
     project: str,
@@ -389,6 +395,7 @@ def track_scan(project: str):
     Yields:
         ScanTracker object for recording results.
     """
+
     class ScanTracker:
         def __init__(self):
             self.recommendations = 0
@@ -429,6 +436,7 @@ def metrics_middleware(func: Callable) -> Callable:
         async def example_endpoint():
             ...
     """
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         start_time = time.time()

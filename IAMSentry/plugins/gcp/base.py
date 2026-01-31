@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterator, List, Optional, Set
 
 from IAMSentry.helpers import hlogging
+
 from . import util_gcp
 
 _log = hlogging.get_logger(__name__)
@@ -26,11 +27,7 @@ class GCPPluginBase(ABC):
         _stats: Dictionary tracking plugin statistics.
     """
 
-    def __init__(
-        self,
-        key_file_path: Optional[str] = None,
-        **kwargs
-    ):
+    def __init__(self, key_file_path: Optional[str] = None, **kwargs):
         """Initialize GCP plugin base.
 
         Arguments:
@@ -49,23 +46,17 @@ class GCPPluginBase(ABC):
     def _init_credentials(self) -> None:
         """Initialize GCP credentials."""
         try:
-            self._credentials, self._project_id = util_gcp.get_credentials(
-                self._key_file_path
-            )
+            self._credentials, self._project_id = util_gcp.get_credentials(self._key_file_path)
             _log.debug(
-                'Initialized credentials (project: %s, key_file: %s)',
+                "Initialized credentials (project: %s, key_file: %s)",
                 self._project_id,
-                'ADC' if not self._key_file_path else self._key_file_path
+                "ADC" if not self._key_file_path else self._key_file_path,
             )
         except Exception as e:
-            _log.error('Failed to initialize credentials: %s', e)
+            _log.error("Failed to initialize credentials: %s", e)
             raise
 
-    def _build_service(
-        self,
-        service_name: str,
-        version: str = 'v1'
-    ) -> Any:
+    def _build_service(self, service_name: str, version: str = "v1") -> Any:
         """Build a GCP API service resource.
 
         Arguments:
@@ -75,11 +66,7 @@ class GCPPluginBase(ABC):
         Returns:
             googleapiclient.discovery.Resource for API interactions.
         """
-        return util_gcp.build_resource(
-            service_name,
-            self._key_file_path,
-            version
-        )
+        return util_gcp.build_resource(service_name, self._key_file_path, version)
 
     def _increment_stat(self, stat_name: str, amount: int = 1) -> None:
         """Increment a statistics counter.
@@ -115,10 +102,7 @@ class ValidationMixin:
     that can be shared across different processor plugins.
     """
 
-    def init_validation_config(
-        self,
-        config: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def init_validation_config(self, config: Optional[Dict[str, Any]] = None) -> None:
         """Initialize validation configuration.
 
         Arguments:
@@ -127,51 +111,42 @@ class ValidationMixin:
         config = config or {}
 
         # Blocklist settings
-        self._blocklist_projects: Set[str] = set(
-            config.get('blocklist_projects', [])
-        )
-        self._blocklist_accounts: Set[str] = set(
-            config.get('blocklist_accounts', [])
-        )
+        self._blocklist_projects: Set[str] = set(config.get("blocklist_projects", []))
+        self._blocklist_accounts: Set[str] = set(config.get("blocklist_accounts", []))
         self._blocklist_account_types: Set[str] = set(
-            config.get('blocklist_account_types', ['serviceAccount'])
+            config.get("blocklist_account_types", ["serviceAccount"])
         )
 
         # Allowlist settings
         self._allowlist_projects: Optional[Set[str]] = None
-        if 'allowlist_projects' in config:
-            self._allowlist_projects = set(config['allowlist_projects'])
+        if "allowlist_projects" in config:
+            self._allowlist_projects = set(config["allowlist_projects"])
         self._allowlist_account_types: Set[str] = set(
-            config.get('allowlist_account_types', ['user', 'group'])
+            config.get("allowlist_account_types", ["user", "group"])
         )
 
         # Safety score thresholds by account type
         self._min_safe_scores: Dict[str, int] = {
-            'user': config.get('min_safe_to_apply_score_user', 60),
-            'group': config.get('min_safe_to_apply_score_group', 60),
-            'serviceaccount': config.get('min_safe_to_apply_score_SA', 60),
+            "user": config.get("min_safe_to_apply_score_user", 60),
+            "group": config.get("min_safe_to_apply_score_group", 60),
+            "serviceaccount": config.get("min_safe_to_apply_score_SA", 60),
         }
 
         # Critical account patterns that require extra review
         self._critical_patterns: List[str] = config.get(
-            'critical_account_patterns',
-            ['prod', 'admin', 'terraform', 'deployment', 'cicd', 'github']
+            "critical_account_patterns",
+            ["prod", "admin", "terraform", "deployment", "cicd", "github"],
         )
 
         _log.debug(
-            'Validation config initialized: blocklist_projects=%d, '
-            'blocklist_accounts=%d, allowlist_account_types=%s',
+            "Validation config initialized: blocklist_projects=%d, "
+            "blocklist_accounts=%d, allowlist_account_types=%s",
             len(self._blocklist_projects),
             len(self._blocklist_accounts),
-            self._allowlist_account_types
+            self._allowlist_account_types,
         )
 
-    def validate_blocklist(
-        self,
-        project: str,
-        account_id: str,
-        account_type: str
-    ) -> bool:
+    def validate_blocklist(self, project: str, account_id: str, account_type: str) -> bool:
         """Check if an account passes blocklist validation.
 
         Arguments:
@@ -183,29 +158,21 @@ class ValidationMixin:
             True if the account is NOT blocked, False if blocked.
         """
         if project in self._blocklist_projects:
-            _log.debug(
-                'Project %s is in blocklist',
-                hlogging.obfuscated(project)
-            )
+            _log.debug("Project %s is in blocklist", hlogging.obfuscated(project))
             return False
 
         if account_id in self._blocklist_accounts:
-            _log.debug(
-                'Account %s is in blocklist',
-                hlogging.obfuscated(account_id)
-            )
+            _log.debug("Account %s is in blocklist", hlogging.obfuscated(account_id))
             return False
 
         if account_type in self._blocklist_account_types:
-            _log.debug('Account type %s is in blocklist', account_type)
+            _log.debug("Account type %s is in blocklist", account_type)
             return False
 
         return True
 
     def validate_allowlist(
-        self,
-        project: Optional[str] = None,
-        account_type: Optional[str] = None
+        self, project: Optional[str] = None, account_type: Optional[str] = None
     ) -> bool:
         """Check if an account passes allowlist validation.
 
@@ -219,24 +186,17 @@ class ValidationMixin:
         # Check project allowlist if configured
         if self._allowlist_projects is not None and project:
             if project not in self._allowlist_projects:
-                _log.debug(
-                    'Project %s not in allowlist',
-                    hlogging.obfuscated(project)
-                )
+                _log.debug("Project %s not in allowlist", hlogging.obfuscated(project))
                 return False
 
         # Check account type allowlist
         if account_type and account_type not in self._allowlist_account_types:
-            _log.debug('Account type %s not in allowlist', account_type)
+            _log.debug("Account type %s not in allowlist", account_type)
             return False
 
         return True
 
-    def validate_safety_score(
-        self,
-        account_type: str,
-        safety_score: int
-    ) -> bool:
+    def validate_safety_score(self, account_type: str, safety_score: int) -> bool:
         """Check if the safety score meets minimum threshold.
 
         Arguments:
@@ -251,14 +211,18 @@ class ValidationMixin:
 
         if safety_score >= min_score:
             _log.debug(
-                'Safety score %d >= minimum %d for account type %s',
-                safety_score, min_score, account_type
+                "Safety score %d >= minimum %d for account type %s",
+                safety_score,
+                min_score,
+                account_type,
             )
             return True
 
         _log.debug(
-            'Safety score %d < minimum %d for account type %s',
-            safety_score, min_score, account_type
+            "Safety score %d < minimum %d for account type %s",
+            safety_score,
+            min_score,
+            account_type,
         )
         return False
 
@@ -275,8 +239,9 @@ class ValidationMixin:
         for pattern in self._critical_patterns:
             if pattern in account_lower:
                 _log.debug(
-                    'Account %s matches critical pattern: %s',
-                    hlogging.obfuscated(account_id), pattern
+                    "Account %s matches critical pattern: %s",
+                    hlogging.obfuscated(account_id),
+                    pattern,
                 )
                 return True
         return False
@@ -291,11 +256,7 @@ class IAMPolicyModifier:
     """
 
     @staticmethod
-    def remove_member(
-        policy: Dict[str, Any],
-        role: str,
-        member: str
-    ) -> Dict[str, Any]:
+    def remove_member(policy: Dict[str, Any], role: str, member: str) -> Dict[str, Any]:
         """Remove a member from a role binding.
 
         Arguments:
@@ -309,28 +270,21 @@ class IAMPolicyModifier:
         # Work on a copy to prevent accidental mutations
         updated_policy = json.loads(json.dumps(policy))
 
-        for binding in updated_policy.get('bindings', []):
-            if binding.get('role') == role:
-                members = binding.get('members', [])
+        for binding in updated_policy.get("bindings", []):
+            if binding.get("role") == role:
+                members = binding.get("members", [])
                 if member in members:
                     members.remove(member)
-                    _log.debug(
-                        'Removed member %s from role %s',
-                        hlogging.obfuscated(member), role
-                    )
+                    _log.debug("Removed member %s from role %s", hlogging.obfuscated(member), role)
                     # Remove empty bindings
                     if not members:
-                        updated_policy['bindings'].remove(binding)
+                        updated_policy["bindings"].remove(binding)
                 break
 
         return updated_policy
 
     @staticmethod
-    def add_member(
-        policy: Dict[str, Any],
-        role: str,
-        member: str
-    ) -> Dict[str, Any]:
+    def add_member(policy: Dict[str, Any], role: str, member: str) -> Dict[str, Any]:
         """Add a member to a role binding.
 
         Arguments:
@@ -345,38 +299,28 @@ class IAMPolicyModifier:
         updated_policy = json.loads(json.dumps(policy))
 
         # Look for existing binding for this role
-        for binding in updated_policy.get('bindings', []):
-            if binding.get('role') == role:
-                members = binding.get('members', [])
+        for binding in updated_policy.get("bindings", []):
+            if binding.get("role") == role:
+                members = binding.get("members", [])
                 if member not in members:
                     members.append(member)
                     _log.debug(
-                        'Added member %s to existing role %s',
-                        hlogging.obfuscated(member), role
+                        "Added member %s to existing role %s", hlogging.obfuscated(member), role
                     )
                 return updated_policy
 
         # No existing binding, create new one
-        if 'bindings' not in updated_policy:
-            updated_policy['bindings'] = []
+        if "bindings" not in updated_policy:
+            updated_policy["bindings"] = []
 
-        updated_policy['bindings'].append({
-            'role': role,
-            'members': [member]
-        })
-        _log.debug(
-            'Added member %s to new role binding %s',
-            hlogging.obfuscated(member), role
-        )
+        updated_policy["bindings"].append({"role": role, "members": [member]})
+        _log.debug("Added member %s to new role binding %s", hlogging.obfuscated(member), role)
 
         return updated_policy
 
     @staticmethod
     def replace_role(
-        policy: Dict[str, Any],
-        member: str,
-        old_role: str,
-        new_role: str
+        policy: Dict[str, Any], member: str, old_role: str, new_role: str
     ) -> Dict[str, Any]:
         """Replace a role for a member (remove old, add new).
 
@@ -393,17 +337,13 @@ class IAMPolicyModifier:
         updated_policy = IAMPolicyModifier.add_member(updated_policy, new_role, member)
 
         _log.debug(
-            'Replaced role for %s: %s -> %s',
-            hlogging.obfuscated(member), old_role, new_role
+            "Replaced role for %s: %s -> %s", hlogging.obfuscated(member), old_role, new_role
         )
 
         return updated_policy
 
     @staticmethod
-    def get_member_roles(
-        policy: Dict[str, Any],
-        member: str
-    ) -> List[str]:
+    def get_member_roles(policy: Dict[str, Any], member: str) -> List[str]:
         """Get all roles assigned to a member.
 
         Arguments:
@@ -414,7 +354,7 @@ class IAMPolicyModifier:
             List of role names assigned to the member.
         """
         roles = []
-        for binding in policy.get('bindings', []):
-            if member in binding.get('members', []):
-                roles.append(binding.get('role'))
+        for binding in policy.get("bindings", []):
+            if member in binding.get("members", []):
+                roles.append(binding.get("role"))
         return roles

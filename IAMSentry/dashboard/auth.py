@@ -137,12 +137,12 @@ class AuthConfig:
     def __init__(self):
         """Load authentication configuration from environment."""
         self.enabled = os.environ.get("IAMSENTRY_AUTH_ENABLED", "true").lower() != "false"
-        self.allow_default_key = os.environ.get(
-            "IAMSENTRY_AUTH_ALLOW_DEFAULT_KEY", "false"
-        ).lower() == "true"
-        self.log_default_key = os.environ.get(
-            "IAMSENTRY_AUTH_LOG_DEFAULT_KEY", "false"
-        ).lower() == "true"
+        self.allow_default_key = (
+            os.environ.get("IAMSENTRY_AUTH_ALLOW_DEFAULT_KEY", "false").lower() == "true"
+        )
+        self.log_default_key = (
+            os.environ.get("IAMSENTRY_AUTH_LOG_DEFAULT_KEY", "false").lower() == "true"
+        )
 
         # Google IAP configuration
         self.iap_enabled = os.environ.get("IAMSENTRY_IAP_ENABLED", "false").lower() == "true"
@@ -155,7 +155,14 @@ class AuthConfig:
             )
 
         if self.iap_enabled:
-            _log.info("Google IAP authentication enabled with audience: %s", self.iap_audience[:50] + "..." if len(self.iap_audience) > 50 else self.iap_audience)
+            _log.info(
+                "Google IAP authentication enabled with audience: %s",
+                (
+                    self.iap_audience[:50] + "..."
+                    if len(self.iap_audience) > 50
+                    else self.iap_audience
+                ),
+            )
 
         # Load API keys
         api_keys_str = os.environ.get("IAMSENTRY_API_KEYS", "")
@@ -175,19 +182,23 @@ class AuthConfig:
 
         # Generate a default key if none configured (for development)
         # Skip this if IAP is enabled (IAP handles auth)
-        if self.enabled and not self.api_keys and not self.basic_auth_users and not self.iap_enabled:
+        if (
+            self.enabled
+            and not self.api_keys
+            and not self.basic_auth_users
+            and not self.iap_enabled
+        ):
             if self.allow_default_key:
                 default_key = secrets.token_urlsafe(32)
                 self.api_keys.add(default_key)
                 if self.log_default_key:
                     _log.warning(
-                        "No authentication configured! Generated temporary API key: %s",
-                        default_key
+                        "No authentication configured! Generated temporary API key: %s", default_key
                     )
                 else:
                     _log.warning(
                         "No authentication configured! Generated temporary API key (prefix): %s...",
-                        default_key[:8]
+                        default_key[:8],
                     )
                     _log.warning(
                         "Set IAMSENTRY_AUTH_LOG_DEFAULT_KEY=true to log the full key (dev only)."
@@ -210,6 +221,7 @@ class AuthConfig:
         """
         try:
             from passlib.context import CryptContext
+
             ctx = CryptContext(schemes=["bcrypt", "sha256_crypt"], deprecated="auto")
             return ctx.hash(password)
         except ImportError:
@@ -233,10 +245,7 @@ class AuthConfig:
         if not api_key:
             return False
         # Use constant-time comparison to prevent timing attacks
-        return any(
-            hmac.compare_digest(api_key, valid_key)
-            for valid_key in self.api_keys
-        )
+        return any(hmac.compare_digest(api_key, valid_key) for valid_key in self.api_keys)
 
     def verify_iap(self, iap_jwt: str) -> Optional[Dict]:
         """Verify a Google IAP JWT token.
@@ -270,13 +279,20 @@ class AuthConfig:
             return False
 
         # If stored hash looks like bcrypt/sha256_crypt, try passlib verify.
-        if stored_hash.startswith("$2") or stored_hash.startswith("$5$") or stored_hash.startswith("$6$"):
+        if (
+            stored_hash.startswith("$2")
+            or stored_hash.startswith("$5$")
+            or stored_hash.startswith("$6$")
+        ):
             try:
                 from passlib.context import CryptContext
+
                 ctx = CryptContext(schemes=["bcrypt", "sha256_crypt"], deprecated="auto")
                 return ctx.verify(password, stored_hash)
             except Exception:
-                _log.warning("Passlib not available to verify hashed password for user: %s", username)
+                _log.warning(
+                    "Passlib not available to verify hashed password for user: %s", username
+                )
                 return False
 
         password_hash = self._hash_password(password)
@@ -393,16 +409,14 @@ async def verify_authentication(
     _log.warning(
         "Authentication failed for %s from %s",
         request.url.path,
-        request.client.host if request.client else "unknown"
+        request.client.host if request.client else "unknown",
     )
 
     # Return 401 with WWW-Authenticate header for browser compatibility
     raise HTTPException(
         status_code=HTTP_401_UNAUTHORIZED,
         detail="Authentication required",
-        headers={
-            "WWW-Authenticate": 'Basic realm="IAMSentry Dashboard"'
-        },
+        headers={"WWW-Authenticate": 'Basic realm="IAMSentry Dashboard"'},
     )
 
 
@@ -478,6 +492,7 @@ def create_auth_middleware(app):
     Returns:
         The middleware function.
     """
+
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next):
         """Authentication middleware."""
@@ -520,7 +535,7 @@ def create_auth_middleware(app):
         _log.warning(
             "Unauthorized access attempt to %s from %s",
             request.url.path,
-            request.client.host if request.client else "unknown"
+            request.client.host if request.client else "unknown",
         )
 
         return HTTPException(

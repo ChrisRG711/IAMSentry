@@ -77,11 +77,28 @@ class StructuredFormatter(logging.Formatter):
 
     # Fields from LogRecord that we handle specially
     RESERVED_FIELDS = {
-        "name", "msg", "args", "created", "filename", "funcName",
-        "levelname", "levelno", "lineno", "module", "msecs",
-        "pathname", "process", "processName", "relativeCreated",
-        "stack_info", "exc_info", "exc_text", "thread", "threadName",
-        "message", "taskName"
+        "name",
+        "msg",
+        "args",
+        "created",
+        "filename",
+        "funcName",
+        "levelname",
+        "levelno",
+        "lineno",
+        "module",
+        "msecs",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "exc_info",
+        "exc_text",
+        "thread",
+        "threadName",
+        "message",
+        "taskName",
     }
 
     def __init__(
@@ -96,7 +113,9 @@ class StructuredFormatter(logging.Formatter):
             service_name: Service name for all logs.
         """
         super().__init__()
-        self.include_location = include_location if include_location is not None else _LOG_INCLUDE_LOCATION
+        self.include_location = (
+            include_location if include_location is not None else _LOG_INCLUDE_LOCATION
+        )
         self.service_name = service_name
 
     def format(self, record: logging.LogRecord) -> str:
@@ -188,18 +207,15 @@ def configure_logging(config: Optional[Dict[str, Any]] = None) -> None:
         # Basic configuration if none provided
         logging.basicConfig(
             level=logging.INFO,
-            format='%(asctime)s [%(process)s] [%(processName)s] [%(threadName)s] '
-                   '%(levelname)s %(name)s:%(lineno)d - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            format="%(asctime)s [%(process)s] [%(processName)s] [%(threadName)s] "
+            "%(levelname)s %(name)s:%(lineno)d - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
 
     _logging_configured = True
 
 
-def configure_structured_logging(
-    level: int = logging.INFO,
-    stream: Any = None
-) -> None:
+def configure_structured_logging(level: int = logging.INFO, stream: Any = None) -> None:
     """Configure structured JSON logging.
 
     Use this for production environments where logs are sent to
@@ -261,29 +277,24 @@ def obfuscated(text: str, visible_chars: int = 2) -> str:
         ''
     """
     if not text:
-        return ''
+        return ""
 
     text_str = str(text)
     length = len(text_str)
 
     # For very short strings, just show asterisks
     if length <= visible_chars * 2:
-        return '*' * length
+        return "*" * length
 
     # Show first and last visible_chars, mask the middle
     start = text_str[:visible_chars]
     end = text_str[-visible_chars:]
     middle_length = length - (visible_chars * 2)
 
-    return start + ('*' * middle_length) + end
+    return start + ("*" * middle_length) + end
 
 
-def log_with_context(
-    logger: logging.Logger,
-    level: int,
-    message: str,
-    **context: Any
-) -> None:
+def log_with_context(logger: logging.Logger, level: int, message: str, **context: Any) -> None:
     """Log a message with additional context fields.
 
     Useful for structured logging where you want to add extra fields
@@ -345,10 +356,11 @@ def configure_from_env() -> None:
     if _LOG_FORMAT == "json":
         console_handler.setFormatter(StructuredFormatter())
     else:
-        console_handler.setFormatter(logging.Formatter(
-            '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        ))
+        console_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+            )
+        )
 
     handlers.append(console_handler)
 
@@ -356,6 +368,7 @@ def configure_from_env() -> None:
     if _LOG_FILE:
         try:
             from pathlib import Path
+
             log_path = Path(_LOG_FILE)
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -365,10 +378,12 @@ def configure_from_env() -> None:
             if _LOG_FORMAT == "json":
                 file_handler.setFormatter(StructuredFormatter())
             else:
-                file_handler.setFormatter(logging.Formatter(
-                    '%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S'
-                ))
+                file_handler.setFormatter(
+                    logging.Formatter(
+                        "%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s",
+                        datefmt="%Y-%m-%d %H:%M:%S",
+                    )
+                )
 
             handlers.append(file_handler)
         except Exception as e:
@@ -394,7 +409,9 @@ def configure_from_env() -> None:
     if level == logging.DEBUG:
         root_logger.debug(
             "Logging configured: format=%s, level=%s, file=%s",
-            _LOG_FORMAT, _LOG_LEVEL, _LOG_FILE or "(none)"
+            _LOG_FORMAT,
+            _LOG_LEVEL,
+            _LOG_FILE or "(none)",
         )
 
 
@@ -436,10 +453,7 @@ class ContextLogger(logging.LoggerAdapter):
         return msg, kwargs
 
 
-def get_context_logger(
-    name: str,
-    **context: Any
-) -> ContextLogger:
+def get_context_logger(name: str, **context: Any) -> ContextLogger:
     """Get a logger with persistent context fields.
 
     Arguments:

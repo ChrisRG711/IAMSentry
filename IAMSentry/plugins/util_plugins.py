@@ -1,7 +1,9 @@
 import importlib
+
 from IAMSentry.helpers import hlogging
 
 _log = hlogging.get_logger(__name__)
+
 
 def load(plugin_config):
     """Construct an object with specified plugin class and parameters.
@@ -55,13 +57,14 @@ def load(plugin_config):
 
     """
     # Split the fully qualified class name into module and class names.
-    parts = plugin_config['plugin'].rsplit('.', 1)
+    parts = plugin_config["plugin"].rsplit(".", 1)
 
     # Validate that the fully qualified class name had at least two
     # parts: module name and class name.
     if len(parts) < 2:
-        msg = ('Invalid plugin class name: {}; expected format: '
-               '[<pkg>.]<module>.<class>'.format(plugin_config['plugin']))
+        msg = "Invalid plugin class name: {}; expected format: " "[<pkg>.]<module>.<class>".format(
+            plugin_config["plugin"]
+        )
         raise PluginError(msg)
 
     # Load the specified adapter class from the specified module.
@@ -69,7 +72,7 @@ def load(plugin_config):
     plugin_class = getattr(plugin_module, parts[1])
 
     # Initialize params to empty dictionary if none was specified.
-    plugin_params = plugin_config.get('params', {})
+    plugin_params = plugin_config.get("params", {})
 
     # Construct the plugin.
     plugin = plugin_class(**plugin_params)

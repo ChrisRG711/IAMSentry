@@ -17,7 +17,7 @@ import queue
 import signal
 import threading
 import time
-from typing import Callable, Generator, Any, Optional
+from typing import Any, Callable, Generator, Optional
 
 from IAMSentry.helpers import hlogging
 
@@ -37,10 +37,10 @@ def run(
     output_func: Callable,
     processes: int = 0,
     threads: int = 0,
-    log_tag: str = '',
+    log_tag: str = "",
     queue_size: int = DEFAULT_QUEUE_SIZE,
     worker_timeout: int = DEFAULT_WORKER_TIMEOUT,
-    queue_timeout: int = DEFAULT_QUEUE_TIMEOUT
+    queue_timeout: int = DEFAULT_QUEUE_TIMEOUT,
 ) -> Generator[Any, None, None]:
     """Run concurrent input/output workers with specified functions.
 
@@ -100,13 +100,17 @@ def run(
     if threads <= 0:
         threads = (os.cpu_count() or 4) * 5
 
-    if log_tag != '':
-        log_tag += ': '
+    if log_tag != "":
+        log_tag += ": "
 
     _log.info(
-        '%sStarting worker pool: %d processes, %d threads each, '
-        'queue_size=%d, worker_timeout=%ds',
-        log_tag, processes, threads, queue_size, worker_timeout
+        "%sStarting worker pool: %d processes, %d threads each, "
+        "queue_size=%d, worker_timeout=%ds",
+        log_tag,
+        processes,
+        threads,
+        queue_size,
+        worker_timeout,
     )
 
     # Create bounded queues to prevent memory exhaustion
@@ -119,11 +123,11 @@ def run(
         w = multiprocessing.Process(
             target=_process_worker,
             args=(in_q, out_q, threads, output_func, log_tag, worker_timeout),
-            name=f'{log_tag}process-{i}'
+            name=f"{log_tag}process-{i}",
         )
         w.start()
         process_workers.append(w)
-        _log.debug('%sStarted process worker %d (pid=%d)', log_tag, i, w.pid)
+        _log.debug("%sStarted process worker %d (pid=%d)", log_tag, i, w.pid)
 
     # Track statistics
     items_queued = 0
@@ -133,20 +137,19 @@ def run(
         # Get input data for thread workers to work on
         for args in input_func():
             if _shutdown_requested.is_set():
-                _log.warning('%sShutdown requested, stopping input processing', log_tag)
+                _log.warning("%sShutdown requested, stopping input processing", log_tag)
                 break
             try:
                 in_q.put(args, timeout=queue_timeout)
                 items_queued += 1
                 if items_queued % 100 == 0:
-                    _log.debug('%sQueued %d items', log_tag, items_queued)
+                    _log.debug("%sQueued %d items", log_tag, items_queued)
             except Exception as e:
                 _log.error(
-                    '%sFailed to queue item (queue full?): %s: %s',
-                    log_tag, type(e).__name__, e
+                    "%sFailed to queue item (queue full?): %s: %s", log_tag, type(e).__name__, e
                 )
 
-        _log.info('%sFinished queuing %d items', log_tag, items_queued)
+        _log.info("%sFinished queuing %d items", log_tag, items_queued)
 
         # Tell each thread worker that there is no more input to work on
         for i in range(processes * threads):
@@ -154,36 +157,38 @@ def run(
                 in_q.put(None, timeout=queue_timeout)
             except Exception as e:
                 _log.error(
-                    '%sFailed to send termination signal %d: %s: %s',
-                    log_tag, i, type(e).__name__, e
+                    "%sFailed to send termination signal %d: %s: %s",
+                    log_tag,
+                    i,
+                    type(e).__name__,
+                    e,
                 )
 
         # Consume output objects from thread workers and yield them
         yield from _get_output(out_q, processes, threads, log_tag, queue_timeout)
 
     except KeyboardInterrupt:
-        _log.warning('%sKeyboard interrupt received, initiating graceful shutdown', log_tag)
+        _log.warning("%sKeyboard interrupt received, initiating graceful shutdown", log_tag)
         _shutdown_requested.set()
     finally:
         # Wait for process workers to terminate with timeout
-        _log.debug('%sWaiting for process workers to terminate', log_tag)
+        _log.debug("%sWaiting for process workers to terminate", log_tag)
         for i, w in enumerate(process_workers):
             w.join(timeout=worker_timeout)
             if w.is_alive():
                 _log.warning(
-                    '%sProcess worker %d (pid=%d) did not terminate, forcing',
-                    log_tag, i, w.pid
+                    "%sProcess worker %d (pid=%d) did not terminate, forcing", log_tag, i, w.pid
                 )
                 w.terminate()
                 w.join(timeout=5)
                 if w.is_alive():
-                    _log.error('%sProcess worker %d still alive after terminate', log_tag, i)
+                    _log.error("%sProcess worker %d still alive after terminate", log_tag, i)
 
         elapsed = time.time() - start_time
         _log.info(
-            '%sWorker pool completed: processed %d items in %.2fs',
-            log_tag, items_queued, elapsed
+            "%sWorker pool completed: processed %d items in %.2fs", log_tag, items_queued, elapsed
         )
+
 
 def _process_worker(
     in_q: multiprocessing.Queue,
@@ -191,7 +196,7 @@ def _process_worker(
     threads: int,
     output_func: Callable,
     log_tag: str,
-    worker_timeout: int
+    worker_timeout: int,
 ) -> None:
     """Process worker that spawns thread workers.
 
@@ -204,15 +209,15 @@ def _process_worker(
         worker_timeout: Timeout for thread operations.
     """
     pid = os.getpid()
-    _log.debug('%sProcess worker started (pid=%d)', log_tag, pid)
+    _log.debug("%sProcess worker started (pid=%d)", log_tag, pid)
 
     thread_workers = []
     for i in range(threads):
         w = threading.Thread(
             target=_thread_worker,
             args=(in_q, out_q, output_func, log_tag, worker_timeout),
-            name=f'{log_tag}thread-{i}',
-            daemon=True  # Daemon threads will be killed when main process exits
+            name=f"{log_tag}thread-{i}",
+            daemon=True,  # Daemon threads will be killed when main process exits
         )
         w.start()
         thread_workers.append(w)
@@ -221,12 +226,9 @@ def _process_worker(
     for i, w in enumerate(thread_workers):
         w.join(timeout=worker_timeout * 2)  # Allow extra time for thread completion
         if w.is_alive():
-            _log.warning(
-                '%sThread worker %d in process %d did not complete',
-                log_tag, i, pid
-            )
+            _log.warning("%sThread worker %d in process %d did not complete", log_tag, i, pid)
 
-    _log.debug('%sProcess worker completed (pid=%d)', log_tag, pid)
+    _log.debug("%sProcess worker completed (pid=%d)", log_tag, pid)
 
 
 def _thread_worker(
@@ -234,7 +236,7 @@ def _thread_worker(
     out_q: multiprocessing.Queue,
     output_func: Callable,
     log_tag: str,
-    worker_timeout: int
+    worker_timeout: int,
 ) -> None:
     """Thread worker that processes items from input queue.
 
@@ -274,37 +276,45 @@ def _thread_worker(
                 elapsed = time.time() - start_time
                 if elapsed > worker_timeout * 0.8:
                     _log.warning(
-                        '%s[%s] Slow processing: %.2fs (threshold: %ds)',
-                        log_tag, thread_name, elapsed, worker_timeout
+                        "%s[%s] Slow processing: %.2fs (threshold: %ds)",
+                        log_tag,
+                        thread_name,
+                        elapsed,
+                        worker_timeout,
                     )
 
             except Exception as e:
                 errors += 1
                 _log.exception(
-                    '%s[%s] Failed to process work item; error: %s: %s',
-                    log_tag, thread_name, type(e).__name__, e
+                    "%s[%s] Failed to process work item; error: %s: %s",
+                    log_tag,
+                    thread_name,
+                    type(e).__name__,
+                    e,
                 )
                 # Continue processing other items despite errors
 
         except Exception as e:
             errors += 1
             _log.exception(
-                '%s[%s] Thread worker error; error: %s: %s',
-                log_tag, thread_name, type(e).__name__, e
+                "%s[%s] Thread worker error; error: %s: %s",
+                log_tag,
+                thread_name,
+                type(e).__name__,
+                e,
             )
 
     _log.debug(
-        '%s[%s] Thread worker completed: processed=%d, errors=%d',
-        log_tag, thread_name, items_processed, errors
+        "%s[%s] Thread worker completed: processed=%d, errors=%d",
+        log_tag,
+        thread_name,
+        items_processed,
+        errors,
     )
 
 
 def _get_output(
-    out_q: multiprocessing.Queue,
-    processes: int,
-    threads: int,
-    log_tag: str,
-    queue_timeout: int
+    out_q: multiprocessing.Queue, processes: int, threads: int, log_tag: str, queue_timeout: int
 ) -> Generator[Any, None, None]:
     """Get output from output queue and yield them.
 
@@ -324,11 +334,11 @@ def _get_output(
     timeout_count = 0
     max_timeouts = 10  # Allow some timeouts before giving up
 
-    _log.debug('%sWaiting for output from %d workers', log_tag, expected_stops)
+    _log.debug("%sWaiting for output from %d workers", log_tag, expected_stops)
 
     while stopped_threads < expected_stops:
         if _shutdown_requested.is_set():
-            _log.warning('%sShutdown requested, stopping output collection', log_tag)
+            _log.warning("%sShutdown requested, stopping output collection", log_tag)
             break
 
         try:
@@ -337,10 +347,7 @@ def _get_output(
 
             if record is None:
                 stopped_threads += 1
-                _log.debug(
-                    '%sWorker stopped (%d/%d)',
-                    log_tag, stopped_threads, expected_stops
-                )
+                _log.debug("%sWorker stopped (%d/%d)", log_tag, stopped_threads, expected_stops)
                 continue
 
             items_yielded += 1
@@ -350,16 +357,12 @@ def _get_output(
             timeout_count += 1
             if timeout_count >= max_timeouts:
                 _log.error(
-                    '%sToo many timeouts (%d) waiting for output, stopping',
-                    log_tag, timeout_count
+                    "%sToo many timeouts (%d) waiting for output, stopping", log_tag, timeout_count
                 )
                 break
-            _log.debug(
-                '%sTimeout waiting for output (count=%d): %s',
-                log_tag, timeout_count, e
-            )
+            _log.debug("%sTimeout waiting for output (count=%d): %s", log_tag, timeout_count, e)
 
-    _log.info('%sOutput collection complete: yielded %d items', log_tag, items_yielded)
+    _log.info("%sOutput collection complete: yielded %d items", log_tag, items_yielded)
 
 
 def request_shutdown() -> None:
@@ -368,7 +371,7 @@ def request_shutdown() -> None:
     This sets the shutdown flag that workers check periodically.
     Workers will complete their current item before stopping.
     """
-    _log.info('Shutdown requested for all workers')
+    _log.info("Shutdown requested for all workers")
     _shutdown_requested.set()
 
 

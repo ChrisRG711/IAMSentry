@@ -14,23 +14,26 @@ class TestDashboardImports:
     def test_dashboard_module_imports(self):
         """Test that dashboard module can be imported."""
         from IAMSentry.dashboard import __version__
+
         assert __version__ is not None
 
     def test_dashboard_server_imports(self):
         """Test that dashboard server can be imported."""
         from IAMSentry.dashboard.server import app
+
         assert app is not None
 
     def test_dashboard_models_import(self):
         """Test that Pydantic models can be imported."""
         from IAMSentry.dashboard.server import (
-            ScanRequest,
-            ScanStatus,
-            Recommendation,
             DashboardStats,
+            Recommendation,
             RemediationRequest,
             RemediationResult,
+            ScanRequest,
+            ScanStatus,
         )
+
         assert ScanRequest is not None
         assert ScanStatus is not None
 
@@ -167,9 +170,7 @@ class TestDashboardHelpers:
                         "operations": [
                             {
                                 "action": "remove",
-                                "pathFilters": {
-                                    "/iamPolicy/bindings/*/role": "roles/editor"
-                                }
+                                "pathFilters": {"/iamPolicy/bindings/*/role": "roles/editor"},
                             }
                         ]
                     }
@@ -204,6 +205,7 @@ class TestDashboardEndpoints:
     def client(self):
         """Create test client."""
         from unittest.mock import patch
+
         from fastapi.testclient import TestClient
 
         with patch.dict(
@@ -212,8 +214,10 @@ class TestDashboardEndpoints:
             clear=False,
         ):
             from IAMSentry.dashboard.auth import reload_auth_config
+
             reload_auth_config()
             from IAMSentry.dashboard.server import app
+
             yield TestClient(app)
 
     def test_health_endpoint(self, client):
@@ -236,6 +240,7 @@ class TestDashboardEndpoints:
         """Test /api/stats endpoint."""
         # Set up empty data dir
         import IAMSentry.dashboard.server as server
+
         original_dir = server.DATA_DIR
         server.DATA_DIR = temp_dir
 
@@ -252,6 +257,7 @@ class TestDashboardEndpoints:
     def test_recommendations_endpoint(self, client, temp_dir):
         """Test /api/recommendations endpoint."""
         import IAMSentry.dashboard.server as server
+
         original_dir = server.DATA_DIR
         server.DATA_DIR = temp_dir
 
@@ -265,6 +271,7 @@ class TestDashboardEndpoints:
     def test_recommendations_with_filters(self, client, temp_dir):
         """Test /api/recommendations with filters."""
         import IAMSentry.dashboard.server as server
+
         original_dir = server.DATA_DIR
         server.DATA_DIR = temp_dir
 
@@ -275,21 +282,21 @@ class TestDashboardEndpoints:
                     "project": "test-project",
                     "account_id": "test@test.iam.gserviceaccount.com",
                     "account_type": "serviceAccount",
-                    "recommendetion_recommender_subtype": "REMOVE_ROLE"
+                    "recommendetion_recommender_subtype": "REMOVE_ROLE",
                 },
                 "score": {
                     "risk_score": 75,
                     "over_privilege_score": 50,
-                    "safe_to_apply_recommendation_score": 80
+                    "safe_to_apply_recommendation_score": 80,
                 },
                 "raw": {
                     "name": "projects/test/recommendations/abc123",
                     "priority": "P2",
-                    "stateInfo": {"state": "ACTIVE"}
-                }
+                    "stateInfo": {"state": "ACTIVE"},
+                },
             }
         ]
-        with open(temp_dir / "results.json", 'w') as f:
+        with open(temp_dir / "results.json", "w") as f:
             json.dump(test_data, f)
 
         try:
@@ -301,6 +308,7 @@ class TestDashboardEndpoints:
     def test_projects_endpoint(self, client, temp_dir):
         """Test /api/projects endpoint."""
         import IAMSentry.dashboard.server as server
+
         original_dir = server.DATA_DIR
         server.DATA_DIR = temp_dir
 
@@ -323,21 +331,21 @@ class TestDashboardEndpoints:
     def test_remediate_not_found(self, client, temp_dir):
         """Test /api/remediate with non-existent recommendation."""
         import IAMSentry.dashboard.server as server
+
         original_dir = server.DATA_DIR
         server.DATA_DIR = temp_dir
 
         try:
-            response = client.post("/api/remediate", json={
-                "recommendation_id": "nonexistent",
-                "dry_run": True
-            })
+            response = client.post(
+                "/api/remediate", json={"recommendation_id": "nonexistent", "dry_run": True}
+            )
             assert response.status_code == 404
         finally:
             server.DATA_DIR = original_dir
 
     def test_auth_status_endpoint(self, client):
         """Test /api/auth/status endpoint."""
-        with patch('IAMSentry.plugins.gcp.util_gcp.get_credentials') as mock_creds:
+        with patch("IAMSentry.plugins.gcp.util_gcp.get_credentials") as mock_creds:
             mock_cred_obj = MagicMock()
             mock_cred_obj.service_account_email = "test@test.iam.gserviceaccount.com"
             mock_creds.return_value = (mock_cred_obj, "test-project")
@@ -347,7 +355,7 @@ class TestDashboardEndpoints:
 
     def test_auth_status_not_authenticated(self, client):
         """Test /api/auth/status when not authenticated."""
-        with patch('IAMSentry.plugins.gcp.util_gcp.get_credentials') as mock_creds:
+        with patch("IAMSentry.plugins.gcp.util_gcp.get_credentials") as mock_creds:
             mock_creds.side_effect = Exception("Not authenticated")
 
             response = client.get("/api/auth/status")
@@ -370,10 +378,11 @@ class TestDashboardDataLoading:
     def test_load_recommendations_empty_dir(self, temp_data_dir):
         """Test loading recommendations from empty directory."""
         import asyncio
-        from IAMSentry.dashboard.server import load_recommendations, DATA_DIR
 
         # Temporarily override DATA_DIR
         import IAMSentry.dashboard.server as server
+        from IAMSentry.dashboard.server import DATA_DIR, load_recommendations
+
         original_dir = server.DATA_DIR
         server.DATA_DIR = temp_data_dir
 
@@ -386,17 +395,19 @@ class TestDashboardDataLoading:
     def test_load_recommendations_with_files(self, temp_data_dir):
         """Test loading recommendations from files."""
         import asyncio
+
         from IAMSentry.dashboard.server import load_recommendations
 
         # Create test data file
         test_data = [
             {"processor": {"project": "test"}, "score": {"risk_score": 50}},
-            {"processor": {"project": "test2"}, "score": {"risk_score": 75}}
+            {"processor": {"project": "test2"}, "score": {"risk_score": 75}},
         ]
-        with open(temp_data_dir / "results.json", 'w') as f:
+        with open(temp_data_dir / "results.json", "w") as f:
             json.dump(test_data, f)
 
         import IAMSentry.dashboard.server as server
+
         original_dir = server.DATA_DIR
         server.DATA_DIR = temp_data_dir
 
@@ -413,4 +424,5 @@ class TestDashboardMain:
     def test_main_function_exists(self):
         """Test that main function exists."""
         from IAMSentry.dashboard.server import main
+
         assert callable(main)

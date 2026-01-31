@@ -37,7 +37,7 @@ from typing import Any, Dict, Optional, Union
 _log = logging.getLogger(__name__)
 
 # Pattern to match Secret Manager references: gsm://project/secret or gsm://project/secret/version
-GSM_PATTERN = re.compile(r'^gsm://([^/]+)/([^/]+)(?:/([^/]+))?$')
+GSM_PATTERN = re.compile(r"^gsm://([^/]+)/([^/]+)(?:/([^/]+))?$")
 
 # Cache for secrets to avoid repeated API calls
 _secret_cache: Dict[str, str] = {}
@@ -62,26 +62,24 @@ def _get_client():
 
     try:
         from google.cloud import secretmanager
+
         _client = secretmanager.SecretManagerServiceClient()
-        _log.debug('Secret Manager client initialized successfully')
+        _log.debug("Secret Manager client initialized successfully")
     except ImportError:
         _log.warning(
-            'google-cloud-secret-manager not installed. '
-            'Install with: pip install google-cloud-secret-manager'
+            "google-cloud-secret-manager not installed. "
+            "Install with: pip install google-cloud-secret-manager"
         )
         _client = None
     except Exception as e:
-        _log.warning('Failed to initialize Secret Manager client: %s', e)
+        _log.warning("Failed to initialize Secret Manager client: %s", e)
         _client = None
 
     return _client
 
 
 def get_secret(
-    project_id: str,
-    secret_id: str,
-    version: str = 'latest',
-    use_cache: bool = True
+    project_id: str, secret_id: str, version: str = "latest", use_cache: bool = True
 ) -> Optional[str]:
     """Retrieve a secret value from Google Secret Manager.
 
@@ -98,44 +96,41 @@ def get_secret(
         >>> password = get_secret('my-project', 'db-password')
         >>> api_key = get_secret('my-project', 'api-key', version='2')
     """
-    cache_key = f'{project_id}/{secret_id}/{version}'
+    cache_key = f"{project_id}/{secret_id}/{version}"
 
     if use_cache and cache_key in _secret_cache:
-        _log.debug('Returning cached secret: %s/%s', project_id, secret_id)
+        _log.debug("Returning cached secret: %s/%s", project_id, secret_id)
         return _secret_cache[cache_key]
 
     client = _get_client()
     if client is None:
-        _log.error('Secret Manager client not available')
+        _log.error("Secret Manager client not available")
         return None
 
     try:
         # Build the resource name
-        name = f'projects/{project_id}/secrets/{secret_id}/versions/{version}'
+        name = f"projects/{project_id}/secrets/{secret_id}/versions/{version}"
 
         # Access the secret
-        response = client.access_secret_version(request={'name': name})
-        secret_value = response.payload.data.decode('UTF-8')
+        response = client.access_secret_version(request={"name": name})
+        secret_value = response.payload.data.decode("UTF-8")
 
         # Cache the result
         if use_cache:
             _secret_cache[cache_key] = secret_value
 
-        _log.debug('Retrieved secret: %s/%s (version: %s)', project_id, secret_id, version)
+        _log.debug("Retrieved secret: %s/%s (version: %s)", project_id, secret_id, version)
         return secret_value
 
     except Exception as e:
         _log.error(
-            'Failed to retrieve secret %s/%s: %s: %s',
-            project_id, secret_id, type(e).__name__, e
+            "Failed to retrieve secret %s/%s: %s: %s", project_id, secret_id, type(e).__name__, e
         )
         return None
 
 
 def get_secret_as_json(
-    project_id: str,
-    secret_id: str,
-    version: str = 'latest'
+    project_id: str, secret_id: str, version: str = "latest"
 ) -> Optional[Dict[str, Any]]:
     """Retrieve a secret and parse it as JSON.
 
@@ -161,15 +156,12 @@ def get_secret_as_json(
     try:
         return json.loads(secret_value)
     except json.JSONDecodeError as e:
-        _log.error('Failed to parse secret %s/%s as JSON: %s', project_id, secret_id, e)
+        _log.error("Failed to parse secret %s/%s as JSON: %s", project_id, secret_id, e)
         return None
 
 
 def get_secret_as_temp_file(
-    project_id: str,
-    secret_id: str,
-    version: str = 'latest',
-    suffix: str = '.json'
+    project_id: str, secret_id: str, version: str = "latest", suffix: str = ".json"
 ) -> Optional[str]:
     """Retrieve a secret and write it to a temporary file.
 
@@ -198,18 +190,18 @@ def get_secret_as_temp_file(
 
     try:
         # Create a secure temporary file
-        fd, path = tempfile.mkstemp(suffix=suffix, prefix='iamsentry_secret_')
-        os.write(fd, secret_value.encode('UTF-8'))
+        fd, path = tempfile.mkstemp(suffix=suffix, prefix="iamsentry_secret_")
+        os.write(fd, secret_value.encode("UTF-8"))
         os.close(fd)
 
         # Set restrictive permissions
         os.chmod(path, 0o600)
 
-        _log.debug('Created temporary secret file: %s', path)
+        _log.debug("Created temporary secret file: %s", path)
         return path
 
     except Exception as e:
-        _log.error('Failed to create temporary file for secret: %s', e)
+        _log.error("Failed to create temporary file for secret: %s", e)
         return None
 
 
@@ -239,9 +231,9 @@ def parse_gsm_reference(value: str) -> Optional[Dict[str, str]]:
         return None
 
     return {
-        'project': match.group(1),
-        'secret': match.group(2),
-        'version': match.group(3) or 'latest'
+        "project": match.group(1),
+        "secret": match.group(2),
+        "version": match.group(3) or "latest",
     }
 
 
@@ -264,24 +256,15 @@ def resolve_secret_reference(value: str) -> str:
     if parsed is None:
         return value
 
-    secret_value = get_secret(
-        parsed['project'],
-        parsed['secret'],
-        parsed['version']
-    )
+    secret_value = get_secret(parsed["project"], parsed["secret"], parsed["version"])
 
     if secret_value is None:
-        raise ValueError(
-            f"Failed to retrieve secret: {parsed['project']}/{parsed['secret']}"
-        )
+        raise ValueError(f"Failed to retrieve secret: {parsed['project']}/{parsed['secret']}")
 
     return secret_value
 
 
-def resolve_secrets(
-    config: Dict[str, Any],
-    recursive: bool = True
-) -> Dict[str, Any]:
+def resolve_secrets(config: Dict[str, Any], recursive: bool = True) -> Dict[str, Any]:
     """Resolve all gsm:// references in a configuration dictionary.
 
     Walks through the configuration and replaces any string values
@@ -316,9 +299,11 @@ def resolve_secrets(
             result[key] = resolve_secrets(value, recursive=True)
         elif isinstance(value, list):
             result[key] = [
-                resolve_secret_reference(item) if isinstance(item, str)
-                else resolve_secrets(item, recursive=True) if isinstance(item, dict)
-                else item
+                (
+                    resolve_secret_reference(item)
+                    if isinstance(item, str)
+                    else resolve_secrets(item, recursive=True) if isinstance(item, dict) else item
+                )
                 for item in value
             ]
         else:
@@ -334,7 +319,7 @@ def clear_cache() -> None:
     """
     global _secret_cache
     _secret_cache = {}
-    _log.debug('Secret cache cleared')
+    _log.debug("Secret cache cleared")
 
 
 def is_gsm_reference(value: Any) -> bool:
@@ -350,10 +335,7 @@ def is_gsm_reference(value: Any) -> bool:
 
 
 # Environment variable support
-def get_secret_from_env(
-    env_var: str,
-    default_project: Optional[str] = None
-) -> Optional[str]:
+def get_secret_from_env(env_var: str, default_project: Optional[str] = None) -> Optional[str]:
     """Get a secret referenced by an environment variable.
 
     The environment variable can contain either:
@@ -383,10 +365,10 @@ def get_secret_from_env(
     parsed = parse_gsm_reference(value)
 
     if parsed:
-        return get_secret(parsed['project'], parsed['secret'], parsed['version'])
+        return get_secret(parsed["project"], parsed["secret"], parsed["version"])
 
     # Check for shorthand: just secret name with default project
-    if default_project and not value.startswith('gsm://') and '/' not in value:
+    if default_project and not value.startswith("gsm://") and "/" not in value:
         # Treat as secret name in default project
         return get_secret(default_project, value)
 

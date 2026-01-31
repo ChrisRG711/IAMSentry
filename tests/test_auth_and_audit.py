@@ -22,6 +22,7 @@ class TestAuthConfig:
         with patch.dict(os.environ, {}, clear=True):
             # Need to reload to pick up new env
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             # Should be enabled but have no credentials configured
             assert config.enabled is True
@@ -29,10 +30,15 @@ class TestAuthConfig:
 
     def test_auth_config_default_key_allowed(self):
         """Test auth config can generate a key when explicitly allowed."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ALLOW_DEFAULT_KEY": "true",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ALLOW_DEFAULT_KEY": "true",
+            },
+            clear=True,
+        ):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             assert config.enabled is True
             assert len(config.api_keys) == 1
@@ -41,16 +47,22 @@ class TestAuthConfig:
         """Test auth can be disabled via env var."""
         with patch.dict(os.environ, {"IAMSENTRY_AUTH_ENABLED": "false"}, clear=True):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             assert config.enabled is False
 
     def test_auth_config_api_keys(self):
         """Test loading API keys from env."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ENABLED": "true",
-            "IAMSENTRY_API_KEYS": "key1,key2,key3",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ENABLED": "true",
+                "IAMSENTRY_API_KEYS": "key1,key2,key3",
+            },
+            clear=True,
+        ):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             assert config.enabled is True
             assert len(config.api_keys) == 3
@@ -60,12 +72,17 @@ class TestAuthConfig:
 
     def test_auth_config_basic_auth_users(self):
         """Test loading basic auth users from env."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ENABLED": "true",
-            "IAMSENTRY_API_KEYS": "testkey",
-            "IAMSENTRY_BASIC_AUTH_USERS": "admin:password123,user:pass456",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ENABLED": "true",
+                "IAMSENTRY_API_KEYS": "testkey",
+                "IAMSENTRY_BASIC_AUTH_USERS": "admin:password123,user:pass456",
+            },
+            clear=True,
+        ):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             assert len(config.basic_auth_users) == 2
             assert "admin" in config.basic_auth_users
@@ -75,22 +92,32 @@ class TestAuthConfig:
 
     def test_verify_api_key_valid(self):
         """Test verifying a valid API key."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ENABLED": "true",
-            "IAMSENTRY_API_KEYS": "valid-key-123,another-key",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ENABLED": "true",
+                "IAMSENTRY_API_KEYS": "valid-key-123,another-key",
+            },
+            clear=True,
+        ):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             assert config.verify_api_key("valid-key-123") is True
             assert config.verify_api_key("another-key") is True
 
     def test_verify_api_key_invalid(self):
         """Test verifying an invalid API key."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ENABLED": "true",
-            "IAMSENTRY_API_KEYS": "valid-key-123",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ENABLED": "true",
+                "IAMSENTRY_API_KEYS": "valid-key-123",
+            },
+            clear=True,
+        ):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             assert config.verify_api_key("invalid-key") is False
             assert config.verify_api_key("") is False
@@ -98,23 +125,33 @@ class TestAuthConfig:
 
     def test_verify_basic_auth_valid(self):
         """Test verifying valid basic auth credentials."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ENABLED": "true",
-            "IAMSENTRY_API_KEYS": "testkey",
-            "IAMSENTRY_BASIC_AUTH_USERS": "admin:secretpass",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ENABLED": "true",
+                "IAMSENTRY_API_KEYS": "testkey",
+                "IAMSENTRY_BASIC_AUTH_USERS": "admin:secretpass",
+            },
+            clear=True,
+        ):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             assert config.verify_basic_auth("admin", "secretpass") is True
 
     def test_verify_basic_auth_invalid(self):
         """Test verifying invalid basic auth credentials."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ENABLED": "true",
-            "IAMSENTRY_API_KEYS": "testkey",
-            "IAMSENTRY_BASIC_AUTH_USERS": "admin:secretpass",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ENABLED": "true",
+                "IAMSENTRY_API_KEYS": "testkey",
+                "IAMSENTRY_BASIC_AUTH_USERS": "admin:secretpass",
+            },
+            clear=True,
+        ):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             assert config.verify_basic_auth("admin", "wrongpass") is False
             assert config.verify_basic_auth("unknown", "secretpass") is False
@@ -122,11 +159,16 @@ class TestAuthConfig:
 
     def test_timing_attack_resistance(self):
         """Test that verification uses constant-time comparison."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ENABLED": "true",
-            "IAMSENTRY_API_KEYS": "valid-key-12345678901234567890",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ENABLED": "true",
+                "IAMSENTRY_API_KEYS": "valid-key-12345678901234567890",
+            },
+            clear=True,
+        ):
             from IAMSentry.dashboard.auth import AuthConfig
+
             config = AuthConfig()
             # Both should take similar time (constant-time comparison)
             # This is a basic check - proper timing attack testing requires statistical analysis
@@ -177,11 +219,16 @@ class TestAuditLogger:
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = os.path.join(tmpdir, "audit.log")
 
-            with patch.dict(os.environ, {
-                "IAMSENTRY_AUDIT_LOG_PATH": log_path,
-                "IAMSENTRY_AUDIT_SIGN_LOGS": "false",
-            }, clear=True):
-                from IAMSentry.audit import AuditLogger, AuditEvent
+            with patch.dict(
+                os.environ,
+                {
+                    "IAMSENTRY_AUDIT_LOG_PATH": log_path,
+                    "IAMSENTRY_AUDIT_SIGN_LOGS": "false",
+                },
+                clear=True,
+            ):
+                from IAMSentry.audit import AuditEvent, AuditLogger
+
                 logger = AuditLogger(log_path=log_path)
 
                 # Log an event
@@ -207,9 +254,12 @@ class TestAuditLogger:
             log_path = os.path.join(tmpdir, "audit.log")
 
             from IAMSentry.audit import AuditLogger
+
             logger = AuditLogger(log_path=log_path)
 
-            before_policy = {"bindings": [{"role": "roles/editor", "members": ["user:test@example.com"]}]}
+            before_policy = {
+                "bindings": [{"role": "roles/editor", "members": ["user:test@example.com"]}]
+            }
             after_policy = {"bindings": []}
 
             record = logger.log_iam_change(
@@ -235,6 +285,7 @@ class TestAuditLogger:
             log_path = os.path.join(tmpdir, "audit.log")
 
             from IAMSentry.audit import AuditLogger
+
             logger = AuditLogger(log_path=log_path)
 
             # Log scan start
@@ -261,6 +312,7 @@ class TestAuditLogger:
             log_path = os.path.join(tmpdir, "audit.log")
 
             from IAMSentry.audit import AuditLogger
+
             logger = AuditLogger(log_path=log_path)
 
             # Log successful auth
@@ -288,7 +340,8 @@ class TestAuditLogger:
             log_path = os.path.join(tmpdir, "audit.log")
             sign_key = "test-signing-key-12345"
 
-            from IAMSentry.audit import AuditLogger, AuditEvent
+            from IAMSentry.audit import AuditEvent, AuditLogger
+
             logger = AuditLogger(
                 log_path=log_path,
                 sign_logs=True,
@@ -319,7 +372,8 @@ class TestAuditLogger:
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = os.path.join(tmpdir, "audit.log")
 
-            from IAMSentry.audit import AuditLogger, AuditEvent
+            from IAMSentry.audit import AuditEvent, AuditLogger
+
             logger = AuditLogger(log_path=log_path)
 
             # Log multiple events
@@ -357,7 +411,7 @@ class TestAuditRecord:
 
     def test_record_has_required_fields(self):
         """Test that audit records have all required fields."""
-        from IAMSentry.audit import AuditRecord, AuditEvent
+        from IAMSentry.audit import AuditEvent, AuditRecord
 
         record = AuditRecord(
             event_type=AuditEvent.IAM_CHANGE_EXECUTED,
@@ -376,7 +430,7 @@ class TestAuditRecord:
 
     def test_record_to_json(self):
         """Test converting record to JSON."""
-        from IAMSentry.audit import AuditRecord, AuditEvent
+        from IAMSentry.audit import AuditEvent, AuditRecord
 
         record = AuditRecord(
             event_type=AuditEvent.AUTH_SUCCESS,
@@ -395,7 +449,7 @@ class TestAuditRecord:
 
     def test_record_signature(self):
         """Test computing record signature."""
-        from IAMSentry.audit import AuditRecord, AuditEvent
+        from IAMSentry.audit import AuditEvent, AuditRecord
 
         record = AuditRecord(
             event_type=AuditEvent.IAM_CHANGE_EXECUTED,
@@ -436,8 +490,8 @@ class TestInputValidation:
     def test_validate_service_account_invalid(self):
         """Test validating invalid service account emails."""
         from IAMSentry.audit_log_permission_analyzer import (
-            validate_service_account,
             InputValidationError,
+            validate_service_account,
         )
 
         invalid_emails = [
@@ -470,8 +524,8 @@ class TestInputValidation:
     def test_validate_project_id_invalid(self):
         """Test validating invalid project IDs."""
         from IAMSentry.audit_log_permission_analyzer import (
-            validate_project_id,
             InputValidationError,
+            validate_project_id,
         )
 
         invalid_ids = [
@@ -491,8 +545,8 @@ class TestInputValidation:
     def test_validate_days_back(self):
         """Test validating days_back parameter."""
         from IAMSentry.audit_log_permission_analyzer import (
-            validate_days_back,
             InputValidationError,
+            validate_days_back,
         )
 
         # Valid values
@@ -513,8 +567,8 @@ class TestInputValidation:
     def test_validate_max_results(self):
         """Test validating max_results parameter."""
         from IAMSentry.audit_log_permission_analyzer import (
-            validate_max_results,
             InputValidationError,
+            validate_max_results,
         )
 
         # Valid values
@@ -537,16 +591,22 @@ class TestDashboardEndpointsWithAuth:
     @pytest.fixture
     def test_client(self):
         """Create a test client with auth configured."""
-        with patch.dict(os.environ, {
-            "IAMSENTRY_AUTH_ENABLED": "true",
-            "IAMSENTRY_API_KEYS": "test-api-key-12345",
-            "IAMSENTRY_BASIC_AUTH_USERS": "admin:testpass",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "IAMSENTRY_AUTH_ENABLED": "true",
+                "IAMSENTRY_API_KEYS": "test-api-key-12345",
+                "IAMSENTRY_BASIC_AUTH_USERS": "admin:testpass",
+            },
+            clear=True,
+        ):
             # Reset the auth config singleton
             import IAMSentry.dashboard.auth as auth_module
+
             auth_module._auth_config = None
 
             from fastapi.testclient import TestClient
+
             from IAMSentry.dashboard.server import app
 
             yield TestClient(app)
@@ -569,36 +629,24 @@ class TestDashboardEndpointsWithAuth:
 
     def test_api_key_authentication(self, test_client):
         """Test authentication via API key."""
-        response = test_client.get(
-            "/api/stats",
-            headers={"X-API-Key": "test-api-key-12345"}
-        )
+        response = test_client.get("/api/stats", headers={"X-API-Key": "test-api-key-12345"})
         assert response.status_code == 200
 
     def test_basic_auth_authentication(self, test_client):
         """Test authentication via Basic Auth."""
         credentials = base64.b64encode(b"admin:testpass").decode()
-        response = test_client.get(
-            "/api/stats",
-            headers={"Authorization": f"Basic {credentials}"}
-        )
+        response = test_client.get("/api/stats", headers={"Authorization": f"Basic {credentials}"})
         assert response.status_code == 200
 
     def test_invalid_api_key_rejected(self, test_client):
         """Test that invalid API key is rejected."""
-        response = test_client.get(
-            "/api/stats",
-            headers={"X-API-Key": "wrong-key"}
-        )
+        response = test_client.get("/api/stats", headers={"X-API-Key": "wrong-key"})
         assert response.status_code == 401
 
     def test_invalid_basic_auth_rejected(self, test_client):
         """Test that invalid Basic Auth is rejected."""
         credentials = base64.b64encode(b"admin:wrongpass").decode()
-        response = test_client.get(
-            "/api/stats",
-            headers={"Authorization": f"Basic {credentials}"}
-        )
+        response = test_client.get("/api/stats", headers={"Authorization": f"Basic {credentials}"})
         assert response.status_code == 401
 
 

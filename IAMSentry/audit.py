@@ -154,7 +154,11 @@ class AuditRecord:
         return {
             "id": self.id,
             "timestamp": self.timestamp,
-            "event_type": self.event_type.value if isinstance(self.event_type, AuditEvent) else self.event_type,
+            "event_type": (
+                self.event_type.value
+                if isinstance(self.event_type, AuditEvent)
+                else self.event_type
+            ),
             "action": self.action,
             "resource": self.resource,
             "actor": self.actor,
@@ -219,15 +223,13 @@ class AuditLogger:
             sign_key: HMAC key for signing (required if sign_logs is True).
         """
         # Load configuration from environment
-        self.log_path = log_path or os.environ.get(
-            "IAMSENTRY_AUDIT_LOG_PATH", "./audit.log"
+        self.log_path = log_path or os.environ.get("IAMSENTRY_AUDIT_LOG_PATH", "./audit.log")
+        self.log_to_stdout = (
+            log_to_stdout or os.environ.get("IAMSENTRY_AUDIT_LOG_STDOUT", "false").lower() == "true"
         )
-        self.log_to_stdout = log_to_stdout or os.environ.get(
-            "IAMSENTRY_AUDIT_LOG_STDOUT", "false"
-        ).lower() == "true"
-        self.sign_logs = sign_logs or os.environ.get(
-            "IAMSENTRY_AUDIT_SIGN_LOGS", "false"
-        ).lower() == "true"
+        self.sign_logs = (
+            sign_logs or os.environ.get("IAMSENTRY_AUDIT_SIGN_LOGS", "false").lower() == "true"
+        )
 
         # Load signing key
         sign_key_env = sign_key or os.environ.get("IAMSENTRY_AUDIT_SIGN_KEY")
@@ -512,9 +514,7 @@ class AuditLogger:
             return []
 
         results = []
-        event_type_values = (
-            {e.value for e in event_types} if event_types else None
-        )
+        event_type_values = {e.value for e in event_types} if event_types else None
 
         with open(self.log_path, "r", encoding="utf-8") as f:
             for line in f:

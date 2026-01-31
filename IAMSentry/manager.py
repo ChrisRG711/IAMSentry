@@ -8,15 +8,14 @@ store, processor, or alert plugin and executes the plugin in a separate
 subprocess.
 """
 
-import multiprocessing as mp
-
 import copy
+import json
+import multiprocessing as mp
 import os
 import textwrap
 import time
-import json
 
-#for scheduling
+# for scheduling
 import schedule
 
 # import pprint
@@ -25,13 +24,13 @@ import schedule
 """
 import IAMSentry
 from IAMSentry import baseconfig, workers
-from IAMSentry.helpers import hconfigs, hemails, hcmd
+from IAMSentry.helpers import hcmd, hconfigs, hemails, hlogging
 from IAMSentry.helpers.hconfigs import Config
 
-from IAMSentry.helpers import hlogging
 # from IAMSentry.helpers.hlogging import Logger
 
 _log = hlogging.get_logger(__name__)
+
 
 def _get_queue_maxsize() -> int:
     """Get queue maxsize from environment. 0 means unbounded."""
@@ -41,6 +40,7 @@ def _get_queue_maxsize() -> int:
         value = 1000
     return max(0, value)
 
+
 def _get_join_timeout() -> int:
     """Get worker join timeout from environment (seconds)."""
     try:
@@ -48,6 +48,7 @@ def _get_join_timeout() -> int:
     except ValueError:
         value = 300
     return max(0, value)
+
 
 def main():
     """Run the framework based on the schedule."""
@@ -63,26 +64,26 @@ def main():
 
     # Now load user's configuration files.
     # config = hconfigs.load(args.config)
-    
+
     # print (config)
 
-    # set up the configuration 
+    # set up the configuration
     config = Config.load(args.config)
     # Logger.set_logger(Config.get_config_logger())
 
     # Then configure the logger once again to honour any logger
     # configuration defined in the user's configuration files.
     # logging.config.dictConfig(config['logger'])
-    _log.info('IAMSentry %s; configured', IAMSentry.__version__)
+    _log.info("IAMSentry %s; configured", IAMSentry.__version__)
 
     # Finally, run the audits, either right now or as per a schedule,
     # depending on the command line options.
     if args.now:
-        _log.info('Starting job now')
+        _log.info("Starting job now")
         _run(config)
     else:
-        _log.info('Scheduled to run job everyday at %s', config['schedule'])
-        schedule.every().day.at(config['schedule']).do(_run, config)
+        _log.info("Scheduled to run job everyday at %s", config["schedule"])
+        schedule.every().day.at(config["schedule"]).do(_run, config)
         while True:
             schedule.run_pending()
             time.sleep(60)
@@ -96,12 +97,12 @@ def _run(config):
 
     """
     start_time = time.localtime()
-    _send_email(config.get('email'), 'all audits', start_time)
+    _send_email(config.get("email"), "all audits", start_time)
 
     # Create an audit object for each audit configured to be run.
-    audit_version = time.strftime('%Y%m%d_%H%M%S', time.gmtime())
+    audit_version = time.strftime("%Y%m%d_%H%M%S", time.gmtime())
     audits = []
-    for audit_key in config['run']:
+    for audit_key in config["run"]:
         audits.append(Audit(audit_key, audit_version, config))
 
     # Start all audits.
@@ -113,7 +114,7 @@ def _run(config):
         audit.join()
 
     end_time = time.localtime()
-    _send_email(config.get('email'), 'all audits', start_time, end_time)
+    _send_email(config.get("email"), "all audits", start_time, end_time)
 
 
 class Audit:
@@ -148,8 +149,8 @@ class Audit:
         self._audit_key = audit_key
         self._audit_version = audit_version
         self._config = config
-        self._audit_config = config['audits'][audit_key]
-        audit_config = config['audits'][audit_key]
+        self._audit_config = config["audits"][audit_key]
+        audit_config = config["audits"][audit_key]
 
         # We keep all workers in these lists.
         self._cloud_workers = []
@@ -165,13 +166,13 @@ class Audit:
         queue_maxsize = _get_queue_maxsize()
 
         # Create alert workers and queues.
-        for plugin_key in audit_config.get('alerts', []):
+        for plugin_key in audit_config.get("alerts", []):
             input_queue = mp.Queue(maxsize=queue_maxsize)
             args = (
                 audit_key,
                 audit_version,
                 plugin_key,
-                config['plugins'][plugin_key],
+                config["plugins"][plugin_key],
                 input_queue,
             )
             worker = mp.Process(target=workers.alert_worker, args=args)
@@ -179,13 +180,13 @@ class Audit:
             self._alert_queues.append(input_queue)
 
         # Create processor_workers workers and queues.
-        for plugin_key in audit_config.get('processors', []):
+        for plugin_key in audit_config.get("processors", []):
             input_queue = mp.Queue(maxsize=queue_maxsize)
             args = (
                 audit_key,
                 audit_version,
                 plugin_key,
-                config['plugins'][plugin_key],
+                config["plugins"][plugin_key],
                 input_queue,
                 self._store_queues,
             )
@@ -194,13 +195,13 @@ class Audit:
             self._processor_queues.append(input_queue)
 
         # Create store workers and queues.
-        for plugin_key in audit_config.get('stores', []):
+        for plugin_key in audit_config.get("stores", []):
             input_queue = mp.Queue(maxsize=queue_maxsize)
             args = (
                 audit_key,
                 audit_version,
                 plugin_key,
-                config['plugins'][plugin_key],
+                config["plugins"][plugin_key],
                 input_queue,
             )
             worker = mp.Process(target=workers.store_worker, args=args)
@@ -208,21 +209,20 @@ class Audit:
             self._store_queues.append(input_queue)
 
         # Create cloud workers.
-        for plugin_key in audit_config.get('clouds', []):
+        for plugin_key in audit_config.get("clouds", []):
             args = (
                 audit_key,
                 audit_version,
                 plugin_key,
-                config['plugins'][plugin_key],
-                self._processor_queues
+                config["plugins"][plugin_key],
+                self._processor_queues,
             )
             worker = mp.Process(target=workers.cloud_worker, args=args)
             self._cloud_workers.append(worker)
 
     def start(self):
         """Start audit by starting all workers."""
-        _send_email(self._config.get('email'), self._audit_key,
-                    self._start_time)
+        _send_email(self._config.get("email"), self._audit_key, self._start_time)
 
         # Start store and alert workers.
         for w in self._store_workers + self._alert_workers:
@@ -258,7 +258,7 @@ class Audit:
         for w in self._cloud_workers:
             w.join(timeout=join_timeout if join_timeout > 0 else None)
             if w.is_alive():
-                _log.warning('cloud_worker: %s did not exit; terminating', w.name)
+                _log.warning("cloud_worker: %s did not exit; terminating", w.name)
                 w.terminate()
                 w.join(timeout=10)
 
@@ -270,7 +270,7 @@ class Audit:
         for w in self._processor_workers:
             w.join(timeout=join_timeout if join_timeout > 0 else None)
             if w.is_alive():
-                _log.warning('processor_worker: %s did not exit; terminating', w.name)
+                _log.warning("processor_worker: %s did not exit; terminating", w.name)
                 w.terminate()
                 w.join(timeout=10)
 
@@ -282,7 +282,7 @@ class Audit:
         for w in self._store_workers:
             w.join(timeout=join_timeout if join_timeout > 0 else None)
             if w.is_alive():
-                _log.warning('store_worker: %s did not exit; terminating', w.name)
+                _log.warning("store_worker: %s did not exit; terminating", w.name)
                 w.terminate()
                 w.join(timeout=10)
 
@@ -294,20 +294,18 @@ class Audit:
         for w in self._alert_workers:
             w.join(timeout=join_timeout if join_timeout > 0 else None)
             if w.is_alive():
-                _log.warning('alert_worker: %s did not exit; terminating', w.name)
+                _log.warning("alert_worker: %s did not exit; terminating", w.name)
                 w.terminate()
                 w.join(timeout=10)
 
         end_time = time.localtime()
-        _send_email(self._config.get('email'), self._audit_key,
-                    self._start_time, end_time)
-        
-        # If Audit results has to be enforced, check if in the 
+        _send_email(self._config.get("email"), self._audit_key, self._start_time, end_time)
+
+        # If Audit results has to be enforced, check if in the
         # current audit confi the applyRecommendations is set
         # to true
-        if self._audit_config.get('applyRecommendations', False):
-            _log.info('Apply recommendations gracefully ...')
-
+        if self._audit_config.get("applyRecommendations", False):
+            _log.info("Apply recommendations gracefully ...")
 
 
 def _send_email(email_config, about, start_time, end_time=None):
@@ -323,17 +321,17 @@ def _send_email(email_config, about, start_time, end_time=None):
             starting.
 
     """
-    state = 'starting' if end_time is None else 'ending'
+    state = "starting" if end_time is None else "ending"
     # if email_config is None:
     #     _log.info('Skipping email notification because email config is '
     #               'missing; about: %s; state: %s', about, state)
     #     return
 
-    _log.info('Sending email; about: %s; state: %s', about, state)
+    _log.info("Sending email; about: %s; state: %s", about, state)
 
     # This part of the content is common for both starting and
     # ending states.
-    time_fmt = '%Y-%m-%d %H:%M:%S %z (%Z)'
+    time_fmt = "%Y-%m-%d %H:%M:%S %z (%Z)"
     content = """
     About: {}
     Started: {}
@@ -341,7 +339,7 @@ def _send_email(email_config, about, start_time, end_time=None):
     content = textwrap.dedent(content).lstrip()
 
     # This part of the content is added only for ending state.
-    if state == 'ending':
+    if state == "ending":
         duration = time.mktime(end_time) - time.mktime(start_time)
         mm, ss = divmod(duration, 60)
         hh, mm = divmod(mm, 60)
@@ -353,7 +351,6 @@ def _send_email(email_config, about, start_time, end_time=None):
 
         content = content + textwrap.dedent(end_content).lstrip()
 
-
     # hemails.send(content=content, **email_config)
     print(content)
-    _log.info('Sent email; about: %s; state: %s', about, state)
+    _log.info("Sent email; about: %s; state: %s", about, state)

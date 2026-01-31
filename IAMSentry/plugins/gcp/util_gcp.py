@@ -25,14 +25,13 @@ import json
 import os
 import time
 from functools import wraps
-from typing import Any, Callable, Iterator, List, Optional, Tuple, TypeVar
-
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, Tuple, TypeVar
 
 try:
     import google.auth as _google_auth
 except Exception:  # pragma: no cover - best-effort optional dependency
+
     class _MissingGoogleAuth:
         class exceptions:
             class DefaultCredentialsError(Exception):
@@ -49,6 +48,7 @@ except Exception:  # pragma: no cover - best-effort optional dependency
 try:
     from google.oauth2 import service_account as _service_account
 except Exception:  # pragma: no cover - best-effort optional dependency
+
     class _MissingServiceAccount:
         class Credentials:
             @staticmethod
@@ -63,6 +63,7 @@ try:
     from googleapiclient import discovery as _discovery
     from googleapiclient.errors import HttpError
 except Exception:  # pragma: no cover - best-effort optional dependency
+
     class HttpError(Exception):
         pass
 
@@ -85,14 +86,14 @@ if TYPE_CHECKING:  # pragma: no cover
 else:
     Credentials = object
 
-from IAMSentry.helpers import hlogging
 from IAMSentry.constants import (
-    GCP_SCOPES,
     API_MAX_RETRIES,
     API_RETRY_DELAY,
     API_RETRY_MULTIPLIER,
     API_TIMEOUT,
+    GCP_SCOPES,
 )
+from IAMSentry.helpers import hlogging
 
 _log = hlogging.get_logger(__name__)
 
@@ -107,14 +108,14 @@ __all__ = [
 ]
 
 # Type variable for generic retry decorator
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def retry_on_error(
     max_retries: int = API_MAX_RETRIES,
     initial_delay: float = API_RETRY_DELAY,
     multiplier: float = API_RETRY_MULTIPLIER,
-    retryable_errors: Tuple[type, ...] = (HttpError,)
+    retryable_errors: Tuple[type, ...] = (HttpError,),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator for retrying functions with exponential backoff.
 
@@ -132,6 +133,7 @@ def retry_on_error(
         ... def fetch_data():
         ...     return api.get_data()
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
@@ -146,35 +148,35 @@ def retry_on_error(
 
                     # Check if it's a retryable HTTP error
                     if isinstance(e, HttpError):
-                        status = e.resp.status if hasattr(e, 'resp') else 0
+                        status = e.resp.status if hasattr(e, "resp") else 0
                         # Don't retry on client errors (4xx) except 429 (rate limit)
                         if 400 <= status < 500 and status != 429:
                             raise
 
                     if attempt < max_retries:
                         _log.warning(
-                            'Attempt %d/%d failed: %s. Retrying in %.1fs...',
-                            attempt + 1, max_retries + 1, e, delay
+                            "Attempt %d/%d failed: %s. Retrying in %.1fs...",
+                            attempt + 1,
+                            max_retries + 1,
+                            e,
+                            delay,
                         )
                         time.sleep(delay)
                         delay *= multiplier
                     else:
-                        _log.error(
-                            'All %d attempts failed. Last error: %s',
-                            max_retries + 1, e
-                        )
+                        _log.error("All %d attempts failed. Last error: %s", max_retries + 1, e)
 
             if last_exception:
                 raise last_exception
             raise RuntimeError("Unexpected state in retry logic")
 
         return wrapper
+
     return decorator
 
 
 def get_credentials(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[List[str]] = None
+    key_file_path: Optional[str] = None, scopes: Optional[List[str]] = None
 ) -> Tuple[Credentials, Optional[str]]:
     """Get GCP credentials with ADC fallback.
 
@@ -213,43 +215,42 @@ def get_credentials(
     # Option 1: Explicit key file path
     if key_file_path:
         # Check for Secret Manager reference
-        if key_file_path.startswith('gsm://'):
+        if key_file_path.startswith("gsm://"):
             key_file_path = _resolve_gsm_key_file(key_file_path)
             if key_file_path is None:
-                _log.warning('Failed to resolve Secret Manager reference, falling back to ADC')
+                _log.warning("Failed to resolve Secret Manager reference, falling back to ADC")
             else:
-                _log.debug('Resolved key file from Secret Manager')
+                _log.debug("Resolved key file from Secret Manager")
 
-        if key_file_path and not key_file_path.startswith('gsm://'):
+        if key_file_path and not key_file_path.startswith("gsm://"):
             # Load from file
             if not os.path.exists(key_file_path):
-                raise FileNotFoundError(f'Service account key file not found: {key_file_path}')
+                raise FileNotFoundError(f"Service account key file not found: {key_file_path}")
 
             credentials = service_account.Credentials.from_service_account_file(
-                key_file_path,
-                scopes=scopes
+                key_file_path, scopes=scopes
             )
 
             # Extract project ID from key file
             try:
-                with open(key_file_path, 'r') as f:
+                with open(key_file_path, "r") as f:
                     key_data = json.load(f)
-                    project_id = key_data.get('project_id')
+                    project_id = key_data.get("project_id")
             except Exception as e:
-                _log.warning('Could not read project_id from key file: %s', e)
+                _log.warning("Could not read project_id from key file: %s", e)
 
-            _log.debug('Using service account credentials from: %s', key_file_path)
+            _log.debug("Using service account credentials from: %s", key_file_path)
             return credentials, project_id
 
     # Option 2: Application Default Credentials
     try:
         credentials, project_id = google.auth.default(scopes=scopes)
-        _log.debug('Using Application Default Credentials (project: %s)', project_id)
+        _log.debug("Using Application Default Credentials (project: %s)", project_id)
         return credentials, project_id
     except google.auth.exceptions.DefaultCredentialsError as e:
         _log.error(
-            'No credentials found. Either provide key_file_path or run: '
-            'gcloud auth application-default login'
+            "No credentials found. Either provide key_file_path or run: "
+            "gcloud auth application-default login"
         )
         raise
 
@@ -265,24 +266,21 @@ def _resolve_gsm_key_file(gsm_reference: str) -> Optional[str]:
     """
     try:
         from IAMSentry.helpers import hsecrets
+
         parsed = hsecrets.parse_gsm_reference(gsm_reference)
         if parsed is None:
             return None
 
         return hsecrets.get_secret_as_temp_file(
-            parsed['project'],
-            parsed['secret'],
-            parsed['version'],
-            suffix='.json'
+            parsed["project"], parsed["secret"], parsed["version"], suffix=".json"
         )
     except Exception as e:
-        _log.error('Failed to resolve Secret Manager reference: %s', e)
+        _log.error("Failed to resolve Secret Manager reference: %s", e)
         return None
 
 
 def set_service_account(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[List[str]] = None
+    key_file_path: Optional[str] = None, scopes: Optional[List[str]] = None
 ) -> Credentials:
     """Get service account credentials (legacy function).
 
@@ -314,8 +312,8 @@ def get_service_account_class() -> type:
 def build_resource(
     service_name: str,
     key_file_path: Optional[str] = None,
-    version: str = 'v1',
-    timeout: int = API_TIMEOUT
+    version: str = "v1",
+    timeout: int = API_TIMEOUT,
 ) -> discovery.Resource:
     """Create a Resource object for interacting with Google APIs.
 
@@ -345,6 +343,7 @@ def build_resource(
     if timeout:
         try:
             import httplib2
+
             http = httplib2.Http(timeout=timeout)
         except Exception:
             _log.warning(
@@ -359,19 +358,11 @@ def build_resource(
     if http is not None:
         build_kwargs["http"] = http
 
-    return discovery.build(
-        service_name,
-        version,
-        **build_kwargs
-    )
+    return discovery.build(service_name, version, **build_kwargs)
 
 
 @retry_on_error()
-def get_resource_iterator(
-    resource: Any,
-    key: Optional[str],
-    **list_kwargs: Any
-) -> Iterator[Any]:
+def get_resource_iterator(resource: Any, key: Optional[str], **list_kwargs: Any) -> Iterator[Any]:
     """Generate resources for specific record types.
 
     This function handles pagination automatically when API returns
@@ -401,29 +392,29 @@ def get_resource_iterator(
             else:
                 for item in response.get(key, []):
                     yield item
-            request = resource.list_next(
-                previous_request=request,
-                previous_response=response
-            )
+            request = resource.list_next(previous_request=request, previous_response=response)
     except HttpError as e:
         _log.error(
-            'Failed to fetch resource list; key: %s; list_kwargs: %s; error: %s: %s',
-            key, list_kwargs, type(e).__name__, e
+            "Failed to fetch resource list; key: %s; list_kwargs: %s; error: %s: %s",
+            key,
+            list_kwargs,
+            type(e).__name__,
+            e,
         )
         raise
     except Exception as e:
         _log.error(
-            'Unexpected error fetching resource list; key: %s; list_kwargs: %s; error: %s: %s',
-            key, list_kwargs, type(e).__name__, e
+            "Unexpected error fetching resource list; key: %s; list_kwargs: %s; error: %s: %s",
+            key,
+            list_kwargs,
+            type(e).__name__,
+            e,
         )
         raise
 
 
 def outline_gcp_project(
-    project_index: int,
-    project: dict,
-    zone: Optional[str],
-    key_file_path: Optional[str]
+    project_index: int, project: dict, zone: Optional[str], key_file_path: Optional[str]
 ) -> str:
     """Return a summary of a GCP project for logging purpose.
 
@@ -436,7 +427,7 @@ def outline_gcp_project(
     Returns:
         String that can be used in log messages.
     """
-    zone_log = '' if zone is None else f'zone: {zone}; '
+    zone_log = "" if zone is None else f"zone: {zone}; "
     return (
         f"project #{project_index}: {project.get('projectId')} "
         f"({project.get('name')}) ({project.get('lifecycleState')}); "

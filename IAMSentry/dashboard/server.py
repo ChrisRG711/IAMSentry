@@ -11,35 +11,34 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from IAMSentry.audit import (
+    AuditEvent,
+    get_audit_logger,
+    log_auth,
+    log_event,
+    log_iam_change,
+    log_scan,
+)
 from IAMSentry.constants import VERSION
 from IAMSentry.dashboard.auth import (
-    get_auth_config,
-    verify_authentication,
-    get_current_user,
     _parse_basic_auth_header,
-)
-from IAMSentry.audit import (
-    get_audit_logger,
-    AuditEvent,
-    log_auth,
-    log_scan,
-    log_iam_change,
-    log_event,
+    get_auth_config,
+    get_current_user,
+    verify_authentication,
 )
 
 # Get allowed origins from environment variable (comma-separated)
 # Default allows localhost for development; override in production
 CORS_ORIGINS = os.environ.get(
-    "IAMSENTRY_CORS_ORIGINS",
-    "http://localhost:8080,http://localhost:3000,http://127.0.0.1:8080"
+    "IAMSENTRY_CORS_ORIGINS", "http://localhost:8080,http://localhost:3000,http://127.0.0.1:8080"
 ).split(",")
 
 # Rate limiting settings (configurable via environment)
@@ -110,6 +109,7 @@ async def auth_middleware(request: Request, call_next):
     # Try API Key
     if not user and api_key and config.verify_api_key(api_key):
         import hashlib
+
         key_id = hashlib.sha256(api_key.encode()).hexdigest()[:12]
         user = f"api_key:{key_id}"
 
@@ -161,15 +161,13 @@ async def rate_limit_middleware(request: Request, call_next):
 
     # Clean old entries outside the window
     _rate_limit_data[client_ip] = [
-        t for t in _rate_limit_data[client_ip]
-        if current_time - t < RATE_LIMIT_WINDOW
+        t for t in _rate_limit_data[client_ip] if current_time - t < RATE_LIMIT_WINDOW
     ]
 
     # Check rate limit
     if len(_rate_limit_data[client_ip]) >= RATE_LIMIT_REQUESTS:
         return JSONResponse(
-            status_code=429,
-            content={"detail": "Rate limit exceeded. Please try again later."}
+            status_code=429, content={"detail": "Rate limit exceeded. Please try again later."}
         )
 
     # Record this request
@@ -188,14 +186,17 @@ _scan_status: Dict[str, str] = {}
 
 # --- Pydantic Models ---
 
+
 class ScanRequest(BaseModel):
     """Request to start a new scan."""
+
     projects: List[str] = ["*"]
     dry_run: bool = True
 
 
 class ScanStatus(BaseModel):
     """Status of a scan job."""
+
     id: str
     status: str
     started_at: Optional[str] = None
@@ -207,6 +208,7 @@ class ScanStatus(BaseModel):
 
 class Recommendation(BaseModel):
     """IAM recommendation summary."""
+
     id: str
     project: str
     account_id: str
@@ -222,6 +224,7 @@ class Recommendation(BaseModel):
 
 class DashboardStats(BaseModel):
     """Dashboard statistics."""
+
     total_recommendations: int
     high_risk_count: int
     medium_risk_count: int
@@ -235,12 +238,14 @@ class DashboardStats(BaseModel):
 
 class RemediationRequest(BaseModel):
     """Request to remediate a recommendation."""
+
     recommendation_id: str
     dry_run: bool = True
 
 
 class RemediationResult(BaseModel):
     """Result of a remediation action."""
+
     recommendation_id: str
     status: str
     action: str
@@ -248,6 +253,7 @@ class RemediationResult(BaseModel):
 
 
 # --- API Routes ---
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -277,6 +283,7 @@ async def prometheus_metrics():
           metrics_path: /metrics
     """
     from fastapi.responses import Response
+
     from IAMSentry.metrics import get_metrics, get_metrics_content_type
 
     return Response(
@@ -290,17 +297,20 @@ async def get_stats():
     """Get dashboard statistics."""
     recommendations = await load_recommendations()
 
-    high_risk = sum(1 for r in recommendations if r.get('score', {}).get('risk_score', 0) >= 70)
-    medium_risk = sum(1 for r in recommendations if 40 <= r.get('score', {}).get('risk_score', 0) < 70)
-    low_risk = sum(1 for r in recommendations if r.get('score', {}).get('risk_score', 0) < 40)
+    high_risk = sum(1 for r in recommendations if r.get("score", {}).get("risk_score", 0) >= 70)
+    medium_risk = sum(
+        1 for r in recommendations if 40 <= r.get("score", {}).get("risk_score", 0) < 70
+    )
+    low_risk = sum(1 for r in recommendations if r.get("score", {}).get("risk_score", 0) < 40)
 
     account_types = {}
     projects = set()
     for r in recommendations:
-        proc = r.get('processor', {})
-        account_types[proc.get('account_type', 'unknown')] = \
-            account_types.get(proc.get('account_type', 'unknown'), 0) + 1
-        projects.add(proc.get('project', 'unknown'))
+        proc = r.get("processor", {})
+        account_types[proc.get("account_type", "unknown")] = (
+            account_types.get(proc.get("account_type", "unknown"), 0) + 1
+        )
+        projects.add(proc.get("project", "unknown"))
 
     # Get last scan time
     last_scan = None
@@ -314,9 +324,9 @@ async def get_stats():
         high_risk_count=high_risk,
         medium_risk_count=medium_risk,
         low_risk_count=low_risk,
-        service_accounts=account_types.get('serviceAccount', 0),
-        users=account_types.get('user', 0),
-        groups=account_types.get('group', 0),
+        service_accounts=account_types.get("serviceAccount", 0),
+        users=account_types.get("user", 0),
+        groups=account_types.get("group", 0),
         projects_scanned=len(projects),
         last_scan=last_scan,
     )
@@ -336,41 +346,43 @@ async def get_recommendations(
     # Apply filters
     filtered = []
     for r in all_recommendations:
-        proc = r.get('processor', {})
-        score = r.get('score', {})
-        raw = r.get('raw', {})
+        proc = r.get("processor", {})
+        score = r.get("score", {})
+        raw = r.get("raw", {})
 
         # Project filter
-        if project and proc.get('project') != project:
+        if project and proc.get("project") != project:
             continue
 
         # Account type filter
-        if account_type and proc.get('account_type') != account_type:
+        if account_type and proc.get("account_type") != account_type:
             continue
 
         # Risk score filter
-        if score.get('risk_score', 0) < min_risk:
+        if score.get("risk_score", 0) < min_risk:
             continue
 
-        filtered.append(Recommendation(
-            id=raw.get('name', '').split('/')[-1] if raw.get('name') else 'unknown',
-            project=proc.get('project', 'unknown'),
-            account_id=proc.get('account_id', 'unknown'),
-            account_type=proc.get('account_type', 'unknown'),
-            current_role=_extract_role(raw),
-            recommended_action=proc.get('recommendation_recommender_subtype', 'unknown'),
-            risk_score=score.get('risk_score', 0),
-            waste_percentage=score.get('over_privilege_score', 0),
-            safe_to_apply_score=score.get('safe_to_apply_recommendation_score', 0),
-            priority=raw.get('priority', 'P4'),
-            state=raw.get('stateInfo', {}).get('state', 'ACTIVE'),
-        ))
+        filtered.append(
+            Recommendation(
+                id=raw.get("name", "").split("/")[-1] if raw.get("name") else "unknown",
+                project=proc.get("project", "unknown"),
+                account_id=proc.get("account_id", "unknown"),
+                account_type=proc.get("account_type", "unknown"),
+                current_role=_extract_role(raw),
+                recommended_action=proc.get("recommendation_recommender_subtype", "unknown"),
+                risk_score=score.get("risk_score", 0),
+                waste_percentage=score.get("over_privilege_score", 0),
+                safe_to_apply_score=score.get("safe_to_apply_recommendation_score", 0),
+                priority=raw.get("priority", "P4"),
+                state=raw.get("stateInfo", {}).get("state", "ACTIVE"),
+            )
+        )
 
     # Sort by risk score descending
     filtered.sort(key=lambda x: x.risk_score, reverse=True)
 
     # Apply pagination
-    return filtered[offset:offset + limit]
+    return filtered[offset : offset + limit]
 
 
 @app.get("/api/recommendations/{recommendation_id}")
@@ -379,8 +391,8 @@ async def get_recommendation(recommendation_id: str):
     recommendations = await load_recommendations()
 
     for r in recommendations:
-        raw = r.get('raw', {})
-        rec_id = raw.get('name', '').split('/')[-1] if raw.get('name') else None
+        raw = r.get("raw", {})
+        rec_id = raw.get("name", "").split("/")[-1] if raw.get("name") else None
         if rec_id == recommendation_id:
             return r
 
@@ -394,16 +406,16 @@ async def get_projects():
 
     projects = {}
     for r in recommendations:
-        project = r.get('processor', {}).get('project', 'unknown')
+        project = r.get("processor", {}).get("project", "unknown")
         if project not in projects:
             projects[project] = {
-                'name': project,
-                'recommendation_count': 0,
-                'high_risk_count': 0,
+                "name": project,
+                "recommendation_count": 0,
+                "high_risk_count": 0,
             }
-        projects[project]['recommendation_count'] += 1
-        if r.get('score', {}).get('risk_score', 0) >= 70:
-            projects[project]['high_risk_count'] += 1
+        projects[project]["recommendation_count"] += 1
+        if r.get("score", {}).get("risk_score", 0) >= 70:
+            projects[project]["high_risk_count"] += 1
 
     return list(projects.values())
 
@@ -448,11 +460,11 @@ async def get_scan_status(scan_id: str):
     return ScanStatus(
         id=scan_id,
         status=_scan_status.get(scan_id, "unknown"),
-        started_at=cached.get('started_at'),
-        completed_at=cached.get('completed_at'),
-        projects=cached.get('projects', []),
-        recommendation_count=cached.get('recommendation_count', 0),
-        error=cached.get('error'),
+        started_at=cached.get("started_at"),
+        completed_at=cached.get("completed_at"),
+        projects=cached.get("projects", []),
+        recommendation_count=cached.get("recommendation_count", 0),
+        error=cached.get("error"),
     )
 
 
@@ -468,8 +480,8 @@ async def remediate(request: RemediationRequest, req: Request):
     # Find the recommendation
     target = None
     for r in recommendations:
-        raw = r.get('raw', {})
-        rec_id = raw.get('name', '').split('/')[-1] if raw.get('name') else None
+        raw = r.get("raw", {})
+        rec_id = raw.get("name", "").split("/")[-1] if raw.get("name") else None
         if rec_id == request.recommendation_id:
             target = r
             break
@@ -478,11 +490,11 @@ async def remediate(request: RemediationRequest, req: Request):
         raise HTTPException(status_code=404, detail="Recommendation not found")
 
     # Extract info for audit logging
-    processor_info = target.get('processor', {})
-    project = processor_info.get('project', 'unknown')
-    account_id = processor_info.get('account_id', 'unknown')
-    action = processor_info.get('recommendation_recommender_subtype', 'unknown')
-    role = _extract_role(target.get('raw', {}))
+    processor_info = target.get("processor", {})
+    project = processor_info.get("project", "unknown")
+    account_id = processor_info.get("account_id", "unknown")
+    action = processor_info.get("recommendation_recommender_subtype", "unknown")
+    role = _extract_role(target.get("raw", {}))
 
     # Import remediation processor
     try:
@@ -495,11 +507,11 @@ async def remediate(request: RemediationRequest, req: Request):
 
         result = None
         for processed in processor.eval(target):
-            result = processed.get('remediation', {})
+            result = processed.get("remediation", {})
             break
 
         if result:
-            status = result.get('execution_result', {}).get('status', 'unknown')
+            status = result.get("execution_result", {}).get("status", "unknown")
 
             # Audit log: IAM change
             log_iam_change(
@@ -509,9 +521,9 @@ async def remediate(request: RemediationRequest, req: Request):
                 role=role,
                 actor=user,
                 recommendation_id=request.recommendation_id,
-                before_policy=result.get('before_policy'),
-                after_policy=result.get('after_policy'),
-                success=(status == 'success' or request.dry_run),
+                before_policy=result.get("before_policy"),
+                after_policy=result.get("after_policy"),
+                success=(status == "success" or request.dry_run),
                 request_id=request.recommendation_id,
                 client_ip=client_ip,
             )
@@ -519,8 +531,8 @@ async def remediate(request: RemediationRequest, req: Request):
             return RemediationResult(
                 recommendation_id=request.recommendation_id,
                 status=status,
-                action=result.get('recommended_action', 'unknown'),
-                details=result.get('execution_result', {}),
+                action=result.get("recommended_action", "unknown"),
+                details=result.get("execution_result", {}),
             )
         else:
             # Audit log: no action taken
@@ -574,11 +586,12 @@ async def get_auth_status():
     """Get current authentication status."""
     try:
         from IAMSentry.plugins.gcp import util_gcp
+
         credentials, project_id = util_gcp.get_credentials()
 
         auth_type = "Application Default Credentials"
         email = None
-        if hasattr(credentials, 'service_account_email'):
+        if hasattr(credentials, "service_account_email"):
             auth_type = "Service Account"
             email = credentials.service_account_email
 
@@ -597,6 +610,7 @@ async def get_auth_status():
 
 
 # --- Helper Functions ---
+
 
 async def load_recommendations() -> List[Dict]:
     """Load recommendations from result files."""
@@ -620,8 +634,8 @@ async def load_recommendations() -> List[Dict]:
 async def run_scan(scan_id: str, projects: List[str], dry_run: bool, actor: str = "anonymous"):
     """Run a scan in the background."""
     _scan_cache[scan_id] = {
-        'started_at': datetime.utcnow().isoformat(),
-        'projects': projects,
+        "started_at": datetime.utcnow().isoformat(),
+        "projects": projects,
     }
 
     try:
@@ -642,11 +656,11 @@ async def run_scan(scan_id: str, projects: List[str], dry_run: bool, actor: str 
 
         # Save results
         output_file = DATA_DIR / f"{scan_id}.json"
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(results, f, indent=2, default=str)
 
-        _scan_cache[scan_id]['completed_at'] = datetime.utcnow().isoformat()
-        _scan_cache[scan_id]['recommendation_count'] = len(results)
+        _scan_cache[scan_id]["completed_at"] = datetime.utcnow().isoformat()
+        _scan_cache[scan_id]["recommendation_count"] = len(results)
         _scan_status[scan_id] = "completed"
 
         # Audit log: scan complete
@@ -659,7 +673,7 @@ async def run_scan(scan_id: str, projects: List[str], dry_run: bool, actor: str 
         )
 
     except Exception as e:
-        _scan_cache[scan_id]['error'] = str(e)
+        _scan_cache[scan_id]["error"] = str(e)
         _scan_status[scan_id] = "failed"
 
         # Audit log: scan failed
@@ -676,18 +690,18 @@ async def run_scan(scan_id: str, projects: List[str], dry_run: bool, actor: str 
 def _extract_role(raw: dict) -> str:
     """Extract role from recommendation."""
     try:
-        ops = raw.get('content', {}).get('operationGroups', [{}])[0].get('operations', [])
+        ops = raw.get("content", {}).get("operationGroups", [{}])[0].get("operations", [])
         for op in ops:
-            if op.get('action') == 'remove':
-                return op.get('pathFilters', {}).get('/iamPolicy/bindings/*/role', 'N/A')
+            if op.get("action") == "remove":
+                return op.get("pathFilters", {}).get("/iamPolicy/bindings/*/role", "N/A")
     except Exception:
         pass
-    return 'N/A'
+    return "N/A"
 
 
 def get_dashboard_html() -> str:
     """Return the dashboard HTML."""
-    return '''<!DOCTYPE html>
+    return """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1160,13 +1174,14 @@ def get_dashboard_html() -> str:
         }).mount('#app');
     </script>
 </body>
-</html>'''
+</html>"""
 
 
 def main():
     """Run the dashboard server."""
-    import uvicorn
     import argparse
+
+    import uvicorn
 
     parser = argparse.ArgumentParser(description="IAMSentry Dashboard Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")

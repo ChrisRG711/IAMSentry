@@ -69,4 +69,4 @@ schedule: "00:00"
 
 
 config_dict = yaml.safe_load(config_yaml)
-__doc__ = __doc__.format(textwrap.indent(config_yaml, '    '))
+__doc__ = __doc__.format(textwrap.indent(config_yaml, "    "))

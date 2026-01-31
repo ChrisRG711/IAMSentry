@@ -51,8 +51,9 @@ class LoggerFormatterConfig(BaseModel):
         format: Log message format string using Python logging format codes.
         datefmt: Date/time format string.
     """
-    format: str = '%(asctime)s %(levelname)s %(name)s - %(message)s'
-    datefmt: Optional[str] = '%Y-%m-%d %H:%M:%S'
+
+    format: str = "%(asctime)s %(levelname)s %(name)s - %(message)s"
+    datefmt: Optional[str] = "%Y-%m-%d %H:%M:%S"
 
 
 class LoggerHandlerConfig(BaseModel):
@@ -70,7 +71,8 @@ class LoggerHandlerConfig(BaseModel):
         encoding: File encoding.
         backupCount: Number of backup files to keep.
     """
-    class_: str = Field(alias='class')
+
+    class_: str = Field(alias="class")
     formatter: Optional[str] = None
     level: Optional[str] = None
     stream: Optional[str] = None
@@ -79,7 +81,7 @@ class LoggerHandlerConfig(BaseModel):
     encoding: Optional[str] = None
     backupCount: Optional[int] = None
 
-    model_config = {'populate_by_name': True}
+    model_config = {"populate_by_name": True}
 
 
 class LoggerRootConfig(BaseModel):
@@ -89,8 +91,9 @@ class LoggerRootConfig(BaseModel):
         level: Minimum logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         handlers: List of handler names to attach to root logger.
     """
-    level: str = 'INFO'
-    handlers: List[str] = Field(default_factory=lambda: ['console'])
+
+    level: str = "INFO"
+    handlers: List[str] = Field(default_factory=lambda: ["console"])
 
 
 class LoggerConfig(BaseModel):
@@ -119,6 +122,7 @@ class LoggerConfig(BaseModel):
             level: INFO
             handlers: [console]
     """
+
     version: int = 1
     disable_existing_loggers: bool = False
     formatters: Dict[str, Any] = Field(default_factory=dict)
@@ -151,6 +155,7 @@ class EmailConfig(BaseModel):
             - security@example.com
           tls: true
     """
+
     enabled: bool = False
     smtp_server: Optional[str] = None
     smtp_port: int = 587
@@ -160,16 +165,16 @@ class EmailConfig(BaseModel):
     password: Optional[str] = None
     tls: bool = True
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_email_config(self):
         """Validate email config when enabled."""
         if self.enabled:
             if not self.smtp_server:
-                raise ValueError('smtp_server required when email is enabled')
+                raise ValueError("smtp_server required when email is enabled")
             if not self.from_email:
-                raise ValueError('from_email required when email is enabled')
+                raise ValueError("from_email required when email is enabled")
             if not self.to_emails:
-                raise ValueError('to_emails required when email is enabled')
+                raise ValueError("to_emails required when email is enabled")
         return self
 
 
@@ -199,44 +204,32 @@ class EnforcerConfig(BaseModel):
           min_safe_to_apply_score_user: 60
           min_safe_to_apply_score_SA: 80
     """
+
     key_file_path: Optional[str] = None
     blocklist_projects: List[str] = Field(
-        default_factory=list,
-        description="Projects to never modify"
+        default_factory=list, description="Projects to never modify"
     )
     blocklist_accounts: List[str] = Field(
-        default_factory=list,
-        description="Account IDs to never modify"
+        default_factory=list, description="Account IDs to never modify"
     )
     blocklist_account_types: List[str] = Field(
         default_factory=list,
-        description="Account types to never modify (user, group, serviceAccount)"
+        description="Account types to never modify (user, group, serviceAccount)",
     )
     allowlist_projects: List[str] = Field(
-        default_factory=list,
-        description="Only modify these projects (empty = all)"
+        default_factory=list, description="Only modify these projects (empty = all)"
     )
     allowlist_account_types: List[str] = Field(
-        default_factory=list,
-        description="Only modify these account types"
+        default_factory=list, description="Only modify these account types"
     )
     min_safe_to_apply_score_user: int = Field(
-        default=60,
-        ge=0,
-        le=100,
-        description="Minimum safety score for user accounts (0-100)"
+        default=60, ge=0, le=100, description="Minimum safety score for user accounts (0-100)"
     )
     min_safe_to_apply_score_group: int = Field(
-        default=40,
-        ge=0,
-        le=100,
-        description="Minimum safety score for group accounts (0-100)"
+        default=40, ge=0, le=100, description="Minimum safety score for group accounts (0-100)"
     )
     min_safe_to_apply_score_SA: int = Field(
-        default=80,
-        ge=0,
-        le=100,
-        description="Minimum safety score for service accounts (0-100)"
+        default=80, ge=0, le=100, description="Minimum safety score for service accounts (0-100)"
     )
 
 
@@ -247,16 +240,14 @@ class BasePluginConfig(BaseModel):
         plugin: Fully qualified plugin class name
             (e.g., 'IAMSentry.plugins.gcp.gcpcloud.GCPCloudIAMRecommendations').
     """
-    plugin: str = Field(
-        ...,
-        description="Fully qualified plugin class name"
-    )
 
-    @field_validator('plugin')
+    plugin: str = Field(..., description="Fully qualified plugin class name")
+
+    @field_validator("plugin")
     @classmethod
     def validate_plugin_name(cls, v: str) -> str:
         """Validate plugin name is fully qualified."""
-        parts = v.split('.')
+        parts = v.split(".")
         if len(parts) < 3:
             raise ValueError(
                 f"Invalid plugin name: {v}. "
@@ -264,7 +255,7 @@ class BasePluginConfig(BaseModel):
             )
         return v
 
-    model_config = {'extra': 'allow'}
+    model_config = {"extra": "allow"}
 
 
 class GCPReaderPluginConfig(BasePluginConfig):
@@ -289,51 +280,37 @@ class GCPReaderPluginConfig(BasePluginConfig):
           processes: 4
           threads: 10
     """
+
     key_file_path: Optional[str] = Field(
-        default=None,
-        description="Service account key path or gsm:// reference"
+        default=None, description="Service account key path or gsm:// reference"
     )
     projects: Union[str, List[str]] = Field(
-        default_factory=list,
-        description="Project IDs to scan, or '*' for all"
+        default_factory=list, description="Project IDs to scan, or '*' for all"
     )
-    regions: List[str] = Field(
-        default_factory=lambda: ['global'],
-        description="Regions to scan"
-    )
-    processes: int = Field(
-        default=4,
-        ge=1,
-        le=32,
-        description="Number of parallel processes"
-    )
-    threads: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Threads per process"
-    )
+    regions: List[str] = Field(default_factory=lambda: ["global"], description="Regions to scan")
+    processes: int = Field(default=4, ge=1, le=32, description="Number of parallel processes")
+    threads: int = Field(default=10, ge=1, le=100, description="Threads per process")
 
-    @field_validator('key_file_path')
+    @field_validator("key_file_path")
     @classmethod
     def validate_key_file(cls, v: Optional[str]) -> Optional[str]:
         """Validate key file exists or is a gsm:// reference."""
         if v is None:
             return v
         # Allow gsm:// references
-        if v.startswith('gsm://'):
+        if v.startswith("gsm://"):
             return v
         # Check file exists for local paths
         if not Path(v).exists():
             raise ValueError(f"Key file not found: {v}")
         return v
 
-    @field_validator('projects', mode='before')
+    @field_validator("projects", mode="before")
     @classmethod
     def normalize_projects(cls, v: Union[str, List[str]]) -> Union[str, List[str]]:
         """Normalize projects to list or wildcard."""
         if isinstance(v, str):
-            return [v] if v != '*' else '*'
+            return [v] if v != "*" else "*"
         return v
 
 
@@ -353,26 +330,20 @@ class GCPProcessorPluginConfig(BasePluginConfig):
           mode_scan: true
           mode_enforce: false
     """
-    mode_scan: bool = Field(
-        default=False,
-        description="Enable scan mode (read-only)"
-    )
+
+    mode_scan: bool = Field(default=False, description="Enable scan mode (read-only)")
     mode_enforce: bool = Field(
-        default=False,
-        description="Enable enforcement mode (applies changes)"
+        default=False, description="Enable enforcement mode (applies changes)"
     )
     enforcer: Optional[EnforcerConfig] = Field(
-        default=None,
-        description="Enforcement settings (required if mode_enforce=True)"
+        default=None, description="Enforcement settings (required if mode_enforce=True)"
     )
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_enforcer_required(self):
         """Validate enforcer config is present when enforcement is enabled."""
         if self.mode_enforce and not self.enforcer:
-            raise ValueError(
-                "enforcer configuration required when mode_enforce is True"
-            )
+            raise ValueError("enforcer configuration required when mode_enforce is True")
         return self
 
 
@@ -391,20 +362,15 @@ class FileStorePluginConfig(BasePluginConfig):
           output_dir: ./output
           file_format: json
     """
-    output_dir: str = Field(
-        default='./output',
-        description="Output directory for result files"
-    )
-    file_format: str = Field(
-        default='json',
-        description="Output format: json or csv"
-    )
 
-    @field_validator('file_format')
+    output_dir: str = Field(default="./output", description="Output directory for result files")
+    file_format: str = Field(default="json", description="Output format: json or csv")
+
+    @field_validator("file_format")
     @classmethod
     def validate_file_format(cls, v: str) -> str:
         """Validate file format is supported."""
-        allowed = {'json', 'csv'}
+        allowed = {"json", "csv"}
         if v.lower() not in allowed:
             raise ValueError(f"file_format must be one of: {', '.join(allowed)}")
         return v.lower()
@@ -433,34 +399,23 @@ class AuditConfig(BaseModel):
             stores:
               - file_store
     """
-    clouds: List[str] = Field(
-        ...,
-        min_length=1,
-        description="Cloud plugins to read from"
-    )
+
+    clouds: List[str] = Field(..., min_length=1, description="Cloud plugins to read from")
     processors: List[str] = Field(
-        default_factory=list,
-        description="Processor plugins for analysis"
+        default_factory=list, description="Processor plugins for analysis"
     )
-    stores: List[str] = Field(
-        ...,
-        min_length=1,
-        description="Storage plugins for output"
-    )
-    alerts: List[str] = Field(
-        default_factory=list,
-        description="Alert plugins for notifications"
-    )
+    stores: List[str] = Field(..., min_length=1, description="Storage plugins for output")
+    alerts: List[str] = Field(default_factory=list, description="Alert plugins for notifications")
     applyRecommendations: bool = Field(
-        default=False,
-        description="Whether to automatically apply recommendations"
+        default=False, description="Whether to automatically apply recommendations"
     )
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_apply_recommendations(self):
         """Warn about dangerous setting."""
         if self.applyRecommendations:
             import logging
+
             logging.getLogger(__name__).warning(
                 "applyRecommendations is enabled! This will modify IAM policies."
             )
@@ -486,46 +441,30 @@ class IAMSentryConfig(BaseModel):
         >>> print(f"Will run audits: {config.run}")
         >>> print(f"Scheduled for: {config.schedule}")
     """
-    logger: LoggerConfig = Field(
-        default_factory=LoggerConfig,
-        description="Logging configuration"
-    )
-    schedule: str = Field(
-        default="00:00",
-        description="Time to run scans (HH:MM format)"
-    )
-    email: Optional[EmailConfig] = Field(
-        default=None,
-        description="Email notification settings"
-    )
+
+    logger: LoggerConfig = Field(default_factory=LoggerConfig, description="Logging configuration")
+    schedule: str = Field(default="00:00", description="Time to run scans (HH:MM format)")
+    email: Optional[EmailConfig] = Field(default=None, description="Email notification settings")
     plugins: Dict[str, Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Plugin configurations"
+        default_factory=dict, description="Plugin configurations"
     )
     audits: Dict[str, AuditConfig] = Field(
-        default_factory=dict,
-        description="Audit workflow definitions"
+        default_factory=dict, description="Audit workflow definitions"
     )
-    run: List[str] = Field(
-        ...,
-        min_length=1,
-        description="List of audit names to execute"
-    )
+    run: List[str] = Field(..., min_length=1, description="List of audit names to execute")
 
-    @field_validator('schedule')
+    @field_validator("schedule")
     @classmethod
     def validate_schedule(cls, v: str) -> str:
         """Validate schedule is in HH:MM format."""
-        if not re.match(r'^\d{2}:\d{2}$', v):
-            raise ValueError(
-                f"Invalid schedule format: {v}. Must be HH:MM (e.g., '02:00')"
-            )
-        hours, minutes = map(int, v.split(':'))
+        if not re.match(r"^\d{2}:\d{2}$", v):
+            raise ValueError(f"Invalid schedule format: {v}. Must be HH:MM (e.g., '02:00')")
+        hours, minutes = map(int, v.split(":"))
         if not (0 <= hours <= 23 and 0 <= minutes <= 59):
             raise ValueError(f"Invalid time: {v}. Hours must be 0-23, minutes 0-59")
         return v
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_audit_references(self):
         """Validate that all referenced audits exist."""
         for audit_name in self.run:
@@ -535,7 +474,7 @@ class IAMSentryConfig(BaseModel):
                 )
         return self
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_plugin_references(self):
         """Validate that all plugins referenced in audits exist."""
         for audit_name, audit in self.audits.items():
@@ -548,7 +487,7 @@ class IAMSentryConfig(BaseModel):
         return self
 
     @classmethod
-    def from_yaml(cls, filepath: str) -> 'IAMSentryConfig':
+    def from_yaml(cls, filepath: str) -> "IAMSentryConfig":
         """Load and validate configuration from YAML file.
 
         Arguments:
@@ -564,20 +503,21 @@ class IAMSentryConfig(BaseModel):
         Example:
             >>> config = IAMSentryConfig.from_yaml('config.yaml')
         """
-        import yaml
         from pathlib import Path
+
+        import yaml
 
         path = Path(filepath)
         if not path.exists():
             raise FileNotFoundError(f"Configuration file not found: {filepath}")
 
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 
         return cls(**data)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'IAMSentryConfig':
+    def from_dict(cls, data: Dict[str, Any]) -> "IAMSentryConfig":
         """Create configuration from dictionary.
 
         Arguments:

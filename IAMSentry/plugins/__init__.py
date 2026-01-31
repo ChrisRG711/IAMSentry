@@ -1,2 +1,1 @@
-"""A package for IAMSentry
-"""
+"""A package for IAMSentry"""

@@ -24,8 +24,8 @@ Example:
 
 from typing import Any, Dict, Optional
 
-from IAMSentry.helpers import hlogging
 from IAMSentry.constants import ACCOUNT_TYPE_WEIGHTS, DEFAULT_SAFE_SCORES
+from IAMSentry.helpers import hlogging
 
 _log = hlogging.get_logger(__name__)
 
@@ -60,11 +60,11 @@ class IAMRiskScoreModel:
         """
         self._record = record
         self._score: Dict[str, Any] = {
-            'safe_to_apply_recommendation_score': None,
-            'safe_to_apply_recommendation_score_factors': None,
-            'risk_score': None,
-            'risk_score_factors': None,
-            'over_privilege_score': None,
+            "safe_to_apply_recommendation_score": None,
+            "safe_to_apply_recommendation_score_factors": None,
+            "risk_score": None,
+            "risk_score_factors": None,
+            "over_privilege_score": None,
         }
 
     def score(self) -> Dict[str, Any]:
@@ -96,13 +96,13 @@ class IAMRiskScoreModel:
                 - risk_score_factors: Number of factors used
                 - over_privilege_score: Percentage of unused permissions
         """
-        account_type = self._record.get('account_type', 'unknown')
-        suggestion_type = self._record.get('account_permission_insights_category', '')
-        used_permissions = int(self._record.get('account_used_permissions', 0))
+        account_type = self._record.get("account_type", "unknown")
+        suggestion_type = self._record.get("account_permission_insights_category", "")
+        used_permissions = int(self._record.get("account_used_permissions", 0))
 
         # Handle None or missing total permissions
-        total_permissions_raw = self._record.get('account_total_permissions')
-        if total_permissions_raw is None or total_permissions_raw == '':
+        total_permissions_raw = self._record.get("account_total_permissions")
+        if total_permissions_raw is None or total_permissions_raw == "":
             total_permissions = max(used_permissions + 1, 1)
         else:
             total_permissions = max(int(total_permissions_raw), 1)
@@ -121,33 +121,27 @@ class IAMRiskScoreModel:
             account_type, suggestion_type, excess_ratio
         )
 
-        self._score.update({
-            'safe_to_apply_recommendation_score': safe_score,
-            'safe_to_apply_recommendation_score_factors': 3
-        })
+        self._score.update(
+            {
+                "safe_to_apply_recommendation_score": safe_score,
+                "safe_to_apply_recommendation_score_factors": 3,
+            }
+        )
 
         # --- Calculate Risk Score ---
         risk_score = self._calculate_risk_score(account_type, excess_ratio)
 
-        self._score.update({
-            'risk_score': risk_score,
-            'risk_score_factors': 2
-        })
+        self._score.update({"risk_score": risk_score, "risk_score_factors": 2})
 
         # --- Calculate Over-Privilege Score ---
         over_privilege_score = round(excess_ratio * 100)
 
-        self._score.update({
-            'over_privilege_score': over_privilege_score
-        })
+        self._score.update({"over_privilege_score": over_privilege_score})
 
         return self._score
 
     def _calculate_safe_to_apply_score(
-        self,
-        account_type: str,
-        suggestion_type: str,
-        excess_ratio: float
+        self, account_type: str, suggestion_type: str, excess_ratio: float
     ) -> int:
         """Calculate how safe it is to apply the recommendation.
 
@@ -163,17 +157,17 @@ class IAMRiskScoreModel:
         # Users can easily request access again, groups have broader impact,
         # service accounts are most critical
         base_scores = {
-            'user': 60,
-            'group': 30,
-            'serviceAccount': 0,
+            "user": 60,
+            "group": 30,
+            "serviceAccount": 0,
         }
         safe_score = base_scores.get(account_type, 0)
 
         # Bonus by suggestion type
         # REMOVE_ROLE is clearer (complete removal), REPLACE_ROLE maintains some access
-        if suggestion_type == 'REMOVE_ROLE':
+        if suggestion_type == "REMOVE_ROLE":
             safe_score += 30
-        elif suggestion_type == 'REPLACE_ROLE':
+        elif suggestion_type == "REPLACE_ROLE":
             safe_score += 20
         else:
             safe_score += 10
@@ -192,11 +186,7 @@ class IAMRiskScoreModel:
         # Cap at 100
         return min(round(safe_score), 100)
 
-    def _calculate_risk_score(
-        self,
-        account_type: str,
-        excess_ratio: float
-    ) -> int:
+    def _calculate_risk_score(self, account_type: str, excess_ratio: float) -> int:
         """Calculate the security risk of keeping current permissions.
 
         Higher excess permissions = higher risk, especially for service accounts.
