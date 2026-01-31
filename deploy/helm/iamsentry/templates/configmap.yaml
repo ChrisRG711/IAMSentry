@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "iamsentry.fullname" . }}-config
+  labels:
+    {{- include "iamsentry.labels" . | nindent 4 }}
+data:
+  {{- if .Values.config.custom }}
+  config.yaml: |
+    {{- .Values.config.custom | nindent 4 }}
+  {{- else }}
+  config.yaml: |
+    # IAMSentry Configuration (Helm-generated)
+
+    logger:
+      version: 1
+      disable_existing_loggers: false
+      formatters:
+        simple:
+          format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+          datefmt: "%Y-%m-%d %H:%M:%S"
+      handlers:
+        console:
+          class: logging.StreamHandler
+          formatter: simple
+          stream: ext://sys.stdout
+      root:
+        level: {{ .Values.logging.level }}
+        handlers:
+          - console
+
+    schedule: "disabled"
+
+    plugins:
+      gcp_iam_reader:
+        plugin: IAMSentry.plugins.gcp.gcpcloud.GCPCloudIAMRecommendations
+        {{- if .Values.gcp.projectId }}
+        projects:
+          - {{ .Values.gcp.projectId | quote }}
+        {{- else }}
+        projects: []
+        {{- end }}
+        regions:
+          {{- toYaml .Values.gcp.regions | nindent 10 }}
+
+      gcp_iam_processor:
+        plugin: IAMSentry.plugins.gcp.gcpcloudiam.GCPIAMRecommendationProcessor
+        mode_scan: true
+        mode_enforce: false
+
+      file_store:
+        plugin: IAMSentry.plugins.files.filestore.FileStore
+        output_dir: /app/output
+        file_format: json
+
+    audits:
+      gcp_iam_audit:
+        clouds:
+          - gcp_iam_reader
+        processors:
+          - gcp_iam_processor
+        stores:
+          - file_store
+        alerts: []
+        applyRecommendations: false
+
+    run:
+      - gcp_iam_audit
+  {{- end }}

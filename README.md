@@ -88,6 +88,32 @@ terraform apply -var="project_id=your-gcp-project-id"
 
 See [deploy/cloudrun/README.md](deploy/cloudrun/README.md) for detailed instructions.
 
+### Option 5: Kubernetes (Helm)
+
+Deploy to Kubernetes using Helm:
+
+```bash
+# Install the chart
+helm install iamsentry ./deploy/helm/iamsentry \
+  --namespace iamsentry \
+  --create-namespace \
+  --set gcp.projectId=your-gcp-project-id
+
+# With Workload Identity (GKE)
+helm install iamsentry ./deploy/helm/iamsentry \
+  --namespace iamsentry \
+  --create-namespace \
+  --set gcp.projectId=your-gcp-project-id \
+  --set gcp.workloadIdentity.enabled=true \
+  --set gcp.workloadIdentity.serviceAccountEmail=iamsentry@your-project.iam.gserviceaccount.com
+```
+
+See [deploy/helm/iamsentry/README.md](deploy/helm/iamsentry/README.md) for detailed instructions including:
+- GKE Workload Identity setup
+- Ingress configuration
+- Prometheus ServiceMonitor
+- Horizontal Pod Autoscaling
+
 ## Documentation
 
 See [docs/README.md](docs/README.md) for full documentation including:
@@ -120,6 +146,7 @@ This fork has been substantially extended with:
 | Pre-flight Checks | `iamsentry validate` command for configuration validation |
 | Cloud Run Deploy | One-command deployment to GCP Cloud Run |
 | Terraform IaC | Infrastructure-as-code for reproducible deployments |
+| Kubernetes Helm | Production-ready Helm chart for K8s/GKE deployment |
 | Prometheus Metrics | `/metrics` endpoint for monitoring |
 | JSON Logging | Structured logs for log aggregators (ELK, Splunk, etc.) |
 | Shell Completion | Tab completion for bash, zsh, fish, powershell |

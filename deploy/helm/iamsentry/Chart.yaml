@@ -1,0 +1,42 @@
+apiVersion: v2
+name: iamsentry
+description: GCP IAM Security Auditor and Remediation Tool
+
+# Chart type: application or library
+type: application
+
+# Chart version - increment for chart changes
+version: 0.1.0
+
+# Application version - matches IAMSentry release
+appVersion: "0.4.0"
+
+# Keywords for searching
+keywords:
+  - gcp
+  - iam
+  - security
+  - audit
+  - remediation
+  - google-cloud
+
+# Maintainer information
+maintainers:
+  - name: IAMSentry Team
+    url: https://github.com/ChrisRG711/IAMSentry
+
+# Project URLs
+home: https://github.com/ChrisRG711/IAMSentry
+sources:
+  - https://github.com/ChrisRG711/IAMSentry
+
+# Minimum Kubernetes version
+kubeVersion: ">=1.23.0-0"
+
+# Dependencies (none currently)
+dependencies: []
+
+# Annotations
+annotations:
+  category: Security
+  licenses: MIT

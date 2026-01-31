@@ -1,0 +1,68 @@
+🛡️ IAMSentry has been deployed!
+
+{{- if .Values.ingress.enabled }}
+1. Access IAMSentry via Ingress:
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+
+{{- else if contains "NodePort" .Values.service.type }}
+1. Get the application URL by running:
+   export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "iamsentry.fullname" . }})
+   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+   echo "IAMSentry URL: http://$NODE_IP:$NODE_PORT"
+
+{{- else if contains "LoadBalancer" .Values.service.type }}
+1. Get the application URL by running:
+   NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+   Watch the status with: kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "iamsentry.fullname" . }}
+
+   export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "iamsentry.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+   echo "IAMSentry URL: http://$SERVICE_IP:{{ .Values.service.port }}"
+
+{{- else if contains "ClusterIP" .Values.service.type }}
+1. Access IAMSentry by running:
+   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "iamsentry.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+   export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+   echo "Visit http://127.0.0.1:8080 to use IAMSentry"
+   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
+{{- end }}
+
+2. View logs:
+   kubectl logs -f deployment/{{ include "iamsentry.fullname" . }} --namespace {{ .Release.Namespace }}
+
+{{- if .Values.auth.enabled }}
+
+3. Authentication:
+{{- if .Values.auth.apiKeys }}
+   API Key authentication is enabled.
+   Get your API key from the secret:
+   kubectl get secret {{ include "iamsentry.fullname" . }}-auth -n {{ .Release.Namespace }} -o jsonpath="{.data.api-keys}" | base64 -d
+{{- end }}
+{{- if .Values.auth.basicAuthUsers }}
+   Basic authentication is enabled.
+{{- end }}
+{{- if .Values.auth.iap.enabled }}
+   Google IAP authentication is enabled.
+   Audience: {{ .Values.auth.iap.audience }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.metrics.enabled }}
+
+4. Metrics:
+   Prometheus metrics are available at /metrics
+{{- if .Values.metrics.serviceMonitor.enabled }}
+   ServiceMonitor is enabled for Prometheus Operator.
+{{- end }}
+{{- end }}
+
+📖 Documentation: https://github.com/yourusername/IAMSentry
+
+⚠️  Important: Make sure your Kubernetes service account has the necessary
+    GCP IAM permissions to scan IAM recommendations. If using Workload Identity,
+    ensure it's properly configured.
+
+For support, please open an issue on GitHub.

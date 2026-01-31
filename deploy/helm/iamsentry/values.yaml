@@ -1,0 +1,226 @@
+# IAMSentry Helm Chart Values
+# Override these values in your own values.yaml file
+
+# Number of replicas
+replicaCount: 1
+
+# Container image configuration
+image:
+  repository: gcr.io/your-project/iamsentry
+  pullPolicy: IfNotPresent
+  # Overrides the image tag (default: chart appVersion)
+  tag: ""
+
+# Image pull secrets for private registries
+imagePullSecrets: []
+
+# Override chart name
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account configuration
+serviceAccount:
+  # Create a service account
+  create: true
+  # Annotations for the service account (e.g., for Workload Identity)
+  annotations: {}
+    # iam.gke.io/gcp-service-account: iamsentry-sa@PROJECT_ID.iam.gserviceaccount.com
+  # Name of the service account (auto-generated if empty)
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+    # For GKE with IAP:
+    # kubernetes.io/ingress.global-static-ip-name: iamsentry-ip
+    # networking.gke.io/managed-certificates: iamsentry-cert
+  hosts:
+    - host: iamsentry.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: iamsentry-tls
+  #    hosts:
+  #      - iamsentry.example.com
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Startup probe configuration (for slow-starting containers)
+startupProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+# ========================================
+# IAMSentry Configuration
+# ========================================
+
+# Authentication configuration
+auth:
+  # Enable authentication
+  enabled: true
+
+  # API keys (comma-separated)
+  # Leave empty to auto-generate
+  apiKeys: ""
+
+  # Basic auth users (format: "user1:pass1,user2:pass2")
+  basicAuthUsers: ""
+
+  # Google IAP configuration
+  iap:
+    enabled: false
+    # IAP audience for JWT validation
+    audience: ""
+
+# Logging configuration
+logging:
+  # Log format: "json" or "text"
+  format: "json"
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+
+# Metrics configuration
+metrics:
+  # Enable Prometheus metrics
+  enabled: true
+
+  # ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: false
+    # Additional labels for ServiceMonitor
+    labels: {}
+    # Scrape interval
+    interval: 30s
+    # Scrape timeout
+    scrapeTimeout: 10s
+
+# Persistence for scan results
+persistence:
+  enabled: false
+  # Storage class (leave empty for default)
+  storageClass: ""
+  # Access modes
+  accessModes:
+    - ReadWriteOnce
+  # Storage size
+  size: 1Gi
+  # Annotations
+  annotations: {}
+
+# GCP configuration
+gcp:
+  # GCP project ID (for scanning)
+  projectId: ""
+
+  # Regions to scan
+  regions:
+    - global
+    - us-central1
+    - us-east1
+
+  # Workload Identity configuration
+  workloadIdentity:
+    enabled: false
+    # GCP service account email
+    serviceAccountEmail: ""
+
+# ConfigMap for additional configuration
+config:
+  # Custom config.yaml content (optional)
+  # If empty, uses default configuration
+  custom: ""
+
+# Extra environment variables
+extraEnv: []
+  # - name: EXAMPLE_VAR
+  #   value: "example-value"
+
+# Extra volume mounts
+extraVolumeMounts: []
+
+# Extra volumes
+extraVolumes: []
+
+# Init containers
+initContainers: []
+
+# Sidecar containers
+sidecars: []
