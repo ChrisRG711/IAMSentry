@@ -261,6 +261,30 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 
+@app.get("/metrics")
+async def prometheus_metrics():
+    """Prometheus metrics endpoint.
+
+    Exposes application metrics in Prometheus format for monitoring.
+    Configure with environment variables:
+        IAMSENTRY_METRICS_ENABLED: Set to "false" to disable
+        IAMSENTRY_METRICS_PREFIX: Custom prefix (default: "iamsentry")
+
+    Example scrape config for Prometheus:
+        - job_name: 'iamsentry'
+          static_configs:
+            - targets: ['localhost:8080']
+          metrics_path: /metrics
+    """
+    from fastapi.responses import Response
+    from IAMSentry.metrics import get_metrics, get_metrics_content_type
+
+    return Response(
+        content=get_metrics(),
+        media_type=get_metrics_content_type(),
+    )
+
+
 @app.get("/api/stats", response_model=DashboardStats)
 async def get_stats():
     """Get dashboard statistics."""

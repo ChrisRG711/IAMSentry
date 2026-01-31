@@ -912,6 +912,133 @@ def validate(
         raise typer.Exit(1)
 
 
+@app.command()
+def completion(
+    shell: str = typer.Argument(
+        None,
+        help="Shell type: bash, zsh, fish, or powershell. Auto-detects if not specified.",
+    ),
+    install: bool = typer.Option(
+        False,
+        "--install",
+        "-i",
+        help="Install completion to your shell config file.",
+    ),
+):
+    """
+    [bold]Generate or install[/bold] shell completion scripts.
+
+    Enables tab completion for commands, options, and arguments.
+
+    [bold]Quick Install:[/bold]
+        iamsentry completion --install
+
+    [bold]Manual Installation:[/bold]
+        # Bash
+        iamsentry completion bash >> ~/.bashrc
+
+        # Zsh
+        iamsentry completion zsh >> ~/.zshrc
+
+        # Fish
+        iamsentry completion fish > ~/.config/fish/completions/iamsentry.fish
+
+        # PowerShell
+        iamsentry completion powershell >> $PROFILE
+    """
+    import os
+    import subprocess
+
+    # Auto-detect shell if not specified
+    if not shell:
+        shell_path = os.environ.get("SHELL", "")
+        if "zsh" in shell_path:
+            shell = "zsh"
+        elif "fish" in shell_path:
+            shell = "fish"
+        elif "bash" in shell_path:
+            shell = "bash"
+        else:
+            # Check for PowerShell on Windows
+            if os.name == "nt":
+                shell = "powershell"
+            else:
+                shell = "bash"  # Default fallback
+
+        console.print(f"[dim]Detected shell: {shell}[/dim]")
+
+    shell = shell.lower()
+    valid_shells = ["bash", "zsh", "fish", "powershell"]
+
+    if shell not in valid_shells:
+        console.print(f"[red]Error:[/red] Unknown shell '{shell}'")
+        console.print(f"[dim]Valid options: {', '.join(valid_shells)}[/dim]")
+        raise typer.Exit(1)
+
+    # Generate completion script
+    env_var = f"_IAMSENTRY_COMPLETE={shell}_source"
+
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "IAMSentry.cli"],
+            env={**os.environ, env_var: "1"},
+            capture_output=True,
+            text=True,
+        )
+        completion_script = result.stdout
+    except Exception as e:
+        console.print(f"[red]Error generating completion:[/red] {e}")
+        raise typer.Exit(1)
+
+    if install:
+        # Determine config file
+        home = Path.home()
+        config_files = {
+            "bash": home / ".bashrc",
+            "zsh": home / ".zshrc",
+            "fish": home / ".config" / "fish" / "completions" / "iamsentry.fish",
+            "powershell": None,  # PowerShell profile varies
+        }
+
+        config_file = config_files.get(shell)
+
+        if shell == "powershell":
+            console.print("[yellow]PowerShell:[/yellow] Add this to your $PROFILE:")
+            console.print(f"\n{completion_script}")
+            return
+
+        if shell == "fish":
+            # Fish needs directory created
+            config_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_file, "w") as f:
+                f.write(completion_script)
+            console.print(f"[green]✓[/green] Installed completion to {config_file}")
+        else:
+            # Bash/Zsh - append to config
+            marker = "# IAMSentry shell completion"
+
+            # Check if already installed
+            if config_file.exists():
+                existing = config_file.read_text()
+                if marker in existing:
+                    console.print(f"[yellow]Completion already installed in {config_file}[/yellow]")
+                    console.print("[dim]To reinstall, remove the IAMSentry section first.[/dim]")
+                    return
+
+            with open(config_file, "a") as f:
+                f.write(f"\n{marker}\n")
+                f.write(f'eval "$({sys.executable} -m IAMSentry.cli completion {shell})"\n')
+
+            console.print(f"[green]✓[/green] Installed completion to {config_file}")
+
+        console.print(f"\n[dim]Restart your shell or run:[/dim]")
+        console.print(f"  source {config_file}")
+
+    else:
+        # Just print the completion script
+        print(completion_script)
+
+
 def cli_main():
     """Entry point for the CLI."""
     app()

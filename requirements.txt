@@ -33,3 +33,6 @@ rich>=13.0.0
 
 # Security - password hashing (strongly recommended for dashboard auth)
 passlib[bcrypt]>=1.7.0
+
+# Monitoring (optional - for /metrics endpoint)
+# prometheus-client>=0.17.0

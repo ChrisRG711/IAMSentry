@@ -65,6 +65,9 @@ dashboard = [
     "jinja2>=3.0.0",
     "python-multipart>=0.0.6",
 ]
+monitoring = [
+    "prometheus-client>=0.17.0",
+]
 
 [project.scripts]
 iamsentry = "IAMSentry.cli:cli_main"
