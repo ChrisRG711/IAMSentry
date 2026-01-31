@@ -1,0 +1,107 @@
+# IAMSentry Docker Compose Configuration
+#
+# Quick start:
+#   docker compose up -d
+#
+# With custom config:
+#   docker compose --env-file .env up -d
+
+version: '3.9'
+
+services:
+  iamsentry:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: iamsentry:latest
+    container_name: iamsentry-dashboard
+    restart: unless-stopped
+
+    ports:
+      - "${IAMSENTRY_PORT:-8080}:8080"
+
+    volumes:
+      # Configuration (read-only)
+      - ./config.yaml:/app/config.yaml:ro
+
+      # Output directory for scan results
+      - ./output:/app/output
+
+      # Logs
+      - ./logs:/app/logs
+
+      # GCP credentials (if using service account key)
+      # Uncomment and adjust path as needed:
+      # - ./credentials.json:/app/credentials.json:ro
+
+      # For Application Default Credentials (ADC):
+      # Mount the gcloud config directory
+      - ${HOME}/.config/gcloud:/home/iamsentry/.config/gcloud:ro
+
+    environment:
+      # Authentication
+      - IAMSENTRY_AUTH_ENABLED=${IAMSENTRY_AUTH_ENABLED:-true}
+      - IAMSENTRY_API_KEYS=${IAMSENTRY_API_KEYS:-}
+      - IAMSENTRY_BASIC_AUTH_USERS=${IAMSENTRY_BASIC_AUTH_USERS:-}
+
+      # Dashboard settings
+      - IAMSENTRY_DATA_DIR=/app/output
+      - IAMSENTRY_CORS_ORIGINS=${IAMSENTRY_CORS_ORIGINS:-http://localhost:8080}
+
+      # Rate limiting
+      - IAMSENTRY_RATE_LIMIT=${IAMSENTRY_RATE_LIMIT:-100}
+      - IAMSENTRY_RATE_WINDOW=${IAMSENTRY_RATE_WINDOW:-60}
+
+      # GCP settings (if using service account key)
+      # - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+
+      # Logging
+      - PYTHONUNBUFFERED=1
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Optional: Run a one-time scan
+  # Usage: docker compose run --rm scanner
+  scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: iamsentry:latest
+    profiles:
+      - tools
+
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./output:/app/output
+      - ${HOME}/.config/gcloud:/home/iamsentry/.config/gcloud:ro
+
+    environment:
+      - PYTHONUNBUFFERED=1
+
+    entrypoint: ["python", "-m", "IAMSentry.cli"]
+    command: ["scan", "--config", "/app/config.yaml"]
+
+# Volumes for persistent data
+volumes:
+  output:
+  logs:
+
+# Network configuration
+networks:
+  default:
+    name: iamsentry-network

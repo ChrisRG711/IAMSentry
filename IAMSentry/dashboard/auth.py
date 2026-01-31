@@ -1,20 +1,31 @@
 """Authentication middleware for IAMSentry Dashboard.
 
-Provides simple, vendor-agnostic authentication suitable for internal use:
+Provides multiple authentication methods for flexibility:
 - API Key authentication for programmatic access
 - HTTP Basic Auth for browser access
+- Google IAP (Identity-Aware Proxy) for GCP-native deployments
 
-No external dependencies or vendor lock-in.
+No external dependencies or vendor lock-in (IAP validation uses google-auth).
 
 Configuration via environment variables:
     IAMSENTRY_API_KEYS: Comma-separated list of valid API keys
     IAMSENTRY_BASIC_AUTH_USERS: Comma-separated user:password pairs
     IAMSENTRY_AUTH_ENABLED: Set to "false" to disable (default: true)
 
+    # Google IAP settings (for Cloud Run/GKE behind IAP)
+    IAMSENTRY_IAP_ENABLED: Set to "true" to enable IAP validation
+    IAMSENTRY_IAP_AUDIENCE: Expected audience for IAP JWT (required if IAP enabled)
+        Format: /projects/PROJECT_NUMBER/global/backendServices/SERVICE_ID
+        Or: /projects/PROJECT_NUMBER/apps/PROJECT_ID (for App Engine)
+
 Example:
     export IAMSENTRY_API_KEYS="key1,key2,key3"
     export IAMSENTRY_BASIC_AUTH_USERS="admin:secretpass,readonly:viewonly"
     export IAMSENTRY_AUTH_ENABLED="true"
+
+    # For IAP:
+    export IAMSENTRY_IAP_ENABLED="true"
+    export IAMSENTRY_IAP_AUDIENCE="/projects/123456789/global/backendServices/987654321"
 
 Usage in requests:
     # API Key via header
@@ -22,6 +33,9 @@ Usage in requests:
 
     # Basic Auth
     curl -u admin:secretpass http://localhost:8080/api/stats
+
+    # IAP (automatically handled by GCP - JWT passed in header)
+    # X-Goog-IAP-JWT-Assertion header is validated automatically
 """
 
 import base64
@@ -45,7 +59,68 @@ __all__ = [
     "verify_authentication",
     "get_current_user",
     "require_auth",
+    "verify_iap_jwt",
 ]
+
+
+def verify_iap_jwt(iap_jwt: str, expected_audience: str) -> Optional[Dict]:
+    """Verify a Google IAP JWT token.
+
+    This validates the JWT assertion passed by Google Identity-Aware Proxy.
+    When your app is deployed behind IAP, GCP automatically adds the
+    X-Goog-IAP-JWT-Assertion header with a signed JWT.
+
+    Arguments:
+        iap_jwt: The JWT from X-Goog-IAP-JWT-Assertion header.
+        expected_audience: The expected audience claim (your IAP client ID).
+            Format: /projects/PROJECT_NUMBER/global/backendServices/SERVICE_ID
+
+    Returns:
+        Dict with user info (email, sub) if valid, None if invalid.
+
+    Example:
+        >>> jwt = request.headers.get("X-Goog-IAP-JWT-Assertion")
+        >>> user = verify_iap_jwt(jwt, "/projects/123/global/backendServices/456")
+        >>> if user:
+        ...     print(f"Authenticated: {user['email']}")
+    """
+    if not iap_jwt or not expected_audience:
+        return None
+
+    try:
+        from google.auth import jwt as google_jwt
+        from google.auth.transport import requests as google_requests
+
+        # IAP uses ES256 algorithm and Google's public keys
+        # The google-auth library handles key fetching and caching
+        decoded = google_jwt.decode(
+            iap_jwt,
+            certs_url="https://www.gstatic.com/iap/verify/public_key",
+            audience=expected_audience,
+        )
+
+        # Extract user information
+        email = decoded.get("email", "")
+        subject = decoded.get("sub", "")
+
+        if email:
+            _log.debug("IAP authentication successful for: %s", email)
+            return {
+                "email": email,
+                "sub": subject,
+                "hd": decoded.get("hd", ""),  # Hosted domain (for G Suite)
+                "iss": decoded.get("iss", ""),
+            }
+
+    except ImportError:
+        _log.warning(
+            "google-auth not installed, IAP verification unavailable. "
+            "Install with: pip install google-auth"
+        )
+    except Exception as e:
+        _log.warning("IAP JWT verification failed: %s", e)
+
+    return None
 
 
 class AuthConfig:
@@ -55,6 +130,8 @@ class AuthConfig:
         enabled: Whether authentication is enabled.
         api_keys: Set of valid API keys.
         basic_auth_users: Dict mapping username to password hash.
+        iap_enabled: Whether Google IAP validation is enabled.
+        iap_audience: Expected audience for IAP JWT validation.
     """
 
     def __init__(self):
@@ -66,6 +143,19 @@ class AuthConfig:
         self.log_default_key = os.environ.get(
             "IAMSENTRY_AUTH_LOG_DEFAULT_KEY", "false"
         ).lower() == "true"
+
+        # Google IAP configuration
+        self.iap_enabled = os.environ.get("IAMSENTRY_IAP_ENABLED", "false").lower() == "true"
+        self.iap_audience = os.environ.get("IAMSENTRY_IAP_AUDIENCE", "")
+
+        if self.iap_enabled and not self.iap_audience:
+            _log.warning(
+                "IAP is enabled but IAMSENTRY_IAP_AUDIENCE is not set. "
+                "IAP authentication will fail. Set the audience to your IAP client ID."
+            )
+
+        if self.iap_enabled:
+            _log.info("Google IAP authentication enabled with audience: %s", self.iap_audience[:50] + "..." if len(self.iap_audience) > 50 else self.iap_audience)
 
         # Load API keys
         api_keys_str = os.environ.get("IAMSENTRY_API_KEYS", "")
@@ -84,7 +174,8 @@ class AuthConfig:
                     self.basic_auth_users[username.strip()] = self._hash_password(password.strip())
 
         # Generate a default key if none configured (for development)
-        if self.enabled and not self.api_keys and not self.basic_auth_users:
+        # Skip this if IAP is enabled (IAP handles auth)
+        if self.enabled and not self.api_keys and not self.basic_auth_users and not self.iap_enabled:
             if self.allow_default_key:
                 default_key = secrets.token_urlsafe(32)
                 self.api_keys.add(default_key)
@@ -146,6 +237,20 @@ class AuthConfig:
             hmac.compare_digest(api_key, valid_key)
             for valid_key in self.api_keys
         )
+
+    def verify_iap(self, iap_jwt: str) -> Optional[Dict]:
+        """Verify a Google IAP JWT token.
+
+        Arguments:
+            iap_jwt: The JWT from X-Goog-IAP-JWT-Assertion header.
+
+        Returns:
+            Dict with user info if valid, None if invalid or IAP disabled.
+        """
+        if not self.iap_enabled or not self.iap_audience:
+            return None
+
+        return verify_iap_jwt(iap_jwt, self.iap_audience)
 
     def verify_basic_auth(self, username: str, password: str) -> bool:
         """Verify Basic Auth credentials.

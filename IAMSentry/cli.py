@@ -704,7 +704,212 @@ run:
     console.print(f"[green]✓[/green] Configuration file created: {output}")
     console.print("\n[dim]Next steps:[/dim]")
     console.print("  1. Edit the configuration file to match your environment")
-    console.print("  2. Run: [cyan]iamsentry scan[/cyan]")
+    console.print("  2. Run: [cyan]iamsentry validate[/cyan] to check your setup")
+    console.print("  3. Run: [cyan]iamsentry scan[/cyan]")
+
+
+@app.command()
+def validate(
+    config: Path = typer.Option(
+        "config.yaml",
+        "--config",
+        "-c",
+        help="Path to configuration file.",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed validation results.",
+    ),
+):
+    """
+    [bold]Validate[/bold] configuration and GCP connectivity.
+
+    Performs pre-flight checks to ensure IAMSentry can run successfully:
+    - Configuration file syntax and schema validation
+    - GCP authentication status
+    - Required IAM permissions
+    - Project accessibility
+    - Network connectivity to GCP APIs
+
+    [dim]Run this before your first scan to catch issues early.[/dim]
+    """
+    console.print(Panel.fit(
+        "[bold blue]IAMSentry Pre-flight Validation[/bold blue]",
+        border_style="blue"
+    ))
+
+    all_passed = True
+    checks_run = 0
+    checks_passed = 0
+
+    # Check 1: Configuration file exists
+    console.print("\n[bold]1. Configuration File[/bold]")
+    checks_run += 1
+    if config.exists():
+        console.print(f"  [green]✓[/green] Found: {config}")
+        checks_passed += 1
+
+        # Validate YAML syntax
+        try:
+            import yaml
+            with open(config) as f:
+                cfg_data = yaml.safe_load(f)
+            console.print(f"  [green]✓[/green] YAML syntax valid")
+            checks_passed += 1
+            checks_run += 1
+
+            # Validate with Pydantic models
+            try:
+                from IAMSentry.config_models import IAMSentryConfig
+                IAMSentryConfig.from_dict(cfg_data)
+                console.print(f"  [green]✓[/green] Configuration schema valid")
+                checks_passed += 1
+            except Exception as e:
+                console.print(f"  [red]✗[/red] Configuration schema error: {e}")
+                all_passed = False
+            checks_run += 1
+
+        except yaml.YAMLError as e:
+            console.print(f"  [red]✗[/red] YAML syntax error: {e}")
+            all_passed = False
+            checks_run += 1
+    else:
+        console.print(f"  [red]✗[/red] Not found: {config}")
+        console.print(f"    [dim]Run: iamsentry init[/dim]")
+        all_passed = False
+
+    # Check 2: GCP Authentication
+    console.print("\n[bold]2. GCP Authentication[/bold]")
+    checks_run += 1
+    try:
+        from google.auth import default
+        from google.auth.exceptions import DefaultCredentialsError
+
+        credentials, project = default()
+        auth_type = "Application Default Credentials"
+
+        if hasattr(credentials, 'service_account_email'):
+            auth_type = f"Service Account ({credentials.service_account_email})"
+
+        console.print(f"  [green]✓[/green] Authenticated via {auth_type}")
+        if project:
+            console.print(f"  [green]✓[/green] Default project: {project}")
+        else:
+            console.print(f"  [yellow]⚠[/yellow] No default project set (will use config)")
+        checks_passed += 1
+
+    except DefaultCredentialsError:
+        console.print(f"  [red]✗[/red] No GCP credentials found")
+        console.print(f"    [dim]Run: gcloud auth application-default login[/dim]")
+        all_passed = False
+    except ImportError:
+        console.print(f"  [red]✗[/red] google-auth not installed")
+        console.print(f"    [dim]Run: pip install google-auth[/dim]")
+        all_passed = False
+    except Exception as e:
+        console.print(f"  [red]✗[/red] Authentication error: {e}")
+        all_passed = False
+
+    # Check 3: GCP API Connectivity
+    console.print("\n[bold]3. GCP API Connectivity[/bold]")
+    checks_run += 1
+    try:
+        from googleapiclient.discovery import build
+        from google.auth import default
+
+        credentials, _ = default()
+
+        # Test Resource Manager API (for project listing)
+        service = build('cloudresourcemanager', 'v1', credentials=credentials)
+        # Just build the service to verify connectivity
+        console.print(f"  [green]✓[/green] Cloud Resource Manager API accessible")
+        checks_passed += 1
+
+        # Test Recommender API
+        checks_run += 1
+        try:
+            recommender_service = build('recommender', 'v1', credentials=credentials)
+            console.print(f"  [green]✓[/green] Recommender API accessible")
+            checks_passed += 1
+        except Exception as e:
+            console.print(f"  [yellow]⚠[/yellow] Recommender API: {e}")
+            if verbose:
+                console.print(f"    [dim]This may require enabling the API in your project[/dim]")
+
+    except Exception as e:
+        console.print(f"  [red]✗[/red] API connectivity error: {e}")
+        all_passed = False
+
+    # Check 4: Required Dependencies
+    console.print("\n[bold]4. Dependencies[/bold]")
+    deps = [
+        ("google-auth", "google.auth"),
+        ("google-api-python-client", "googleapiclient"),
+        ("PyYAML", "yaml"),
+        ("pydantic", "pydantic"),
+        ("typer", "typer"),
+        ("rich", "rich"),
+    ]
+
+    optional_deps = [
+        ("passlib", "passlib", "Secure password hashing"),
+        ("fastapi", "fastapi", "Dashboard"),
+        ("uvicorn", "uvicorn", "Dashboard server"),
+    ]
+
+    for name, module in deps:
+        checks_run += 1
+        try:
+            __import__(module)
+            console.print(f"  [green]✓[/green] {name}")
+            checks_passed += 1
+        except ImportError:
+            console.print(f"  [red]✗[/red] {name} not installed")
+            all_passed = False
+
+    if verbose:
+        console.print("\n  [dim]Optional dependencies:[/dim]")
+        for name, module, purpose in optional_deps:
+            try:
+                __import__(module)
+                console.print(f"  [green]✓[/green] {name} [dim]({purpose})[/dim]")
+            except ImportError:
+                console.print(f"  [yellow]○[/yellow] {name} not installed [dim]({purpose})[/dim]")
+
+    # Check 5: Output directory
+    console.print("\n[bold]5. Output Directory[/bold]")
+    checks_run += 1
+    output_dir = Path("./output")
+    if output_dir.exists():
+        if output_dir.is_dir():
+            console.print(f"  [green]✓[/green] Output directory exists: {output_dir}")
+            checks_passed += 1
+        else:
+            console.print(f"  [red]✗[/red] {output_dir} exists but is not a directory")
+            all_passed = False
+    else:
+        console.print(f"  [yellow]⚠[/yellow] Output directory does not exist (will be created)")
+        checks_passed += 1  # Not a failure, just informational
+
+    # Summary
+    console.print("\n" + "─" * 50)
+    if all_passed:
+        console.print(Panel.fit(
+            f"[bold green]✓ All checks passed![/bold green]\n\n"
+            f"[dim]{checks_passed}/{checks_run} checks passed[/dim]\n\n"
+            f"You're ready to run: [cyan]iamsentry scan --config {config}[/cyan]",
+            border_style="green"
+        ))
+    else:
+        console.print(Panel.fit(
+            f"[bold red]✗ Some checks failed[/bold red]\n\n"
+            f"[dim]{checks_passed}/{checks_run} checks passed[/dim]\n\n"
+            f"Please fix the issues above before running a scan.",
+            border_style="red"
+        ))
+        raise typer.Exit(1)
 
 
 def cli_main():

@@ -1,7 +1,9 @@
 # IAMSentry
 
-[![CI](https://github.com/documo/iamsentry/actions/workflows/ci.yml/badge.svg)](https://github.com/documo/iamsentry/actions/workflows/ci.yml)
+[![CI](https://github.com/ChrisRG711/IAMSentry/actions/workflows/ci.yml/badge.svg)](https://github.com/ChrisRG711/IAMSentry/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://github.com/ChrisRG711/IAMSentry/blob/main/Dockerfile)
 
 
 **GCP IAM Security Auditor and Remediation Tool**
@@ -15,25 +17,56 @@ IAMSentry automatically analyzes Google Cloud Platform's Identity and Access Man
 - **Web Dashboard** - Visual interface for reviewing recommendations and applying remediations
 - **Automated Remediation** - Safely apply recommendations with dry-run mode (enabled by default)
 - **Audit Logging** - Comprehensive compliance logging with optional HMAC signing
-- **Authentication** - API Key and HTTP Basic Auth for dashboard security
+- **Authentication** - API Key, HTTP Basic Auth, and Google IAP support
+- **Docker Ready** - Containerized deployment with Docker and docker-compose
 
 ## Quick Start
 
+### Option 1: Interactive Setup (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/ChrisRG711/IAMSentry.git
+cd IAMSentry
+
+# Run the setup wizard
+./setup.sh
+```
+
+The setup wizard will:
+- Install dependencies (optionally in a virtual environment)
+- Configure GCP authentication
+- Generate a configuration file
+- Create API keys for dashboard access
+
+### Option 2: Manual Installation
+
 ```bash
 # Install
-pip install -e .
+pip install -e ".[dashboard]"
 
 # Authenticate with GCP
 gcloud auth application-default login
 
-# Check status
-iamsentry status
+# Validate your setup
+iamsentry validate
 
 # Scan for recommendations
 iamsentry scan --config config.yaml --output ./output
 
 # Start the dashboard
 iamsentry-dashboard --port 8080
+```
+
+### Option 3: Docker
+
+```bash
+# Build and run with docker-compose
+docker compose up -d
+
+# Or build manually
+docker build -t iamsentry .
+docker run -p 8080:8080 -v ~/.config/gcloud:/home/iamsentry/.config/gcloud:ro iamsentry
 ```
 
 ## Documentation
@@ -58,11 +91,14 @@ This fork has been substantially extended with:
 | Feature | Description |
 |---------|-------------|
 | Web Dashboard | Vue.js + FastAPI visualization interface |
-| Authentication | API Key and HTTP Basic Auth support |
+| Authentication | API Key, HTTP Basic Auth, and Google IAP support |
 | Audit Logging | Compliance logging with HMAC signing |
 | Modern CLI | Typer-based CLI with rich formatting |
 | Security Hardening | Input validation, injection prevention |
 | Test Suite | Comprehensive automated testing |
+| Docker Support | Dockerfile and docker-compose for easy deployment |
+| Setup Wizard | Interactive setup script for quick onboarding |
+| Pre-flight Checks | `iamsentry validate` command for configuration validation |
 
 See [NOTICE](NOTICE) for full attribution details.
 

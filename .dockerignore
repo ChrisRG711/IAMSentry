@@ -1,0 +1,67 @@
+# IAMSentry Docker Ignore
+# Exclude files not needed in the container
+
+# Git
+.git
+.gitignore
+.github
+
+# Documentation (not needed at runtime)
+docs/
+*.md
+!README.md
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Development files
+.vscode/
+.idea/
+*.sublime-*
+.venv/
+venv/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+
+# Credentials (never include in images!)
+*-key.json
+*_key.json
+credentials*.json
+service-account*.json
+.env
+.env.*
+
+# Configuration (mount at runtime instead)
+config.yaml
+my_config.yaml
+
+# Output directories (mount at runtime)
+output/
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+Makefile
+
+# Misc
+*.log
+*.tmp
+tmp/

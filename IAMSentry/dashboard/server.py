@@ -74,7 +74,11 @@ app.add_middleware(
 async def auth_middleware(request: Request, call_next):
     """Authentication middleware.
 
-    Checks API key or Basic Auth credentials before processing requests.
+    Checks authentication in this order:
+    1. Google IAP (if enabled) - for GCP-native deployments
+    2. API Key - for programmatic access
+    3. HTTP Basic Auth - for browser access
+
     Skips authentication for public endpoints (/, /health, /api/docs).
     """
     # Skip auth for certain paths
@@ -93,11 +97,18 @@ async def auth_middleware(request: Request, call_next):
     # Try to authenticate
     api_key = request.headers.get("X-API-Key")
     auth_header = request.headers.get("Authorization", "")
+    iap_jwt = request.headers.get("X-Goog-IAP-JWT-Assertion")
 
     user = None
 
+    # Try Google IAP first (if enabled)
+    if not user and iap_jwt and config.iap_enabled:
+        iap_user = config.verify_iap(iap_jwt)
+        if iap_user:
+            user = f"iap:{iap_user.get('email', 'unknown')}"
+
     # Try API Key
-    if api_key and config.verify_api_key(api_key):
+    if not user and api_key and config.verify_api_key(api_key):
         import hashlib
         key_id = hashlib.sha256(api_key.encode()).hexdigest()[:12]
         user = f"api_key:{key_id}"
