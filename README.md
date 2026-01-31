@@ -69,6 +69,25 @@ docker build -t iamsentry .
 docker run -p 8080:8080 -v ~/.config/gcloud:/home/iamsentry/.config/gcloud:ro iamsentry
 ```
 
+### Option 4: Cloud Run (Production)
+
+Deploy to Google Cloud Run with one command:
+
+```bash
+cd deploy/cloudrun
+./deploy.sh --project your-gcp-project-id
+```
+
+Or use Terraform for infrastructure-as-code:
+
+```bash
+cd deploy/cloudrun/terraform
+terraform init
+terraform apply -var="project_id=your-gcp-project-id"
+```
+
+See [deploy/cloudrun/README.md](deploy/cloudrun/README.md) for detailed instructions.
+
 ## Documentation
 
 See [docs/README.md](docs/README.md) for full documentation including:
@@ -99,6 +118,11 @@ This fork has been substantially extended with:
 | Docker Support | Dockerfile and docker-compose for easy deployment |
 | Setup Wizard | Interactive setup script for quick onboarding |
 | Pre-flight Checks | `iamsentry validate` command for configuration validation |
+| Cloud Run Deploy | One-command deployment to GCP Cloud Run |
+| Terraform IaC | Infrastructure-as-code for reproducible deployments |
+| Prometheus Metrics | `/metrics` endpoint for monitoring |
+| JSON Logging | Structured logs for log aggregators (ELK, Splunk, etc.) |
+| Shell Completion | Tab completion for bash, zsh, fish, powershell |
 
 See [NOTICE](NOTICE) for full attribution details.
 

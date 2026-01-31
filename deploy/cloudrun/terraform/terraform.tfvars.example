@@ -1,0 +1,46 @@
+# IAMSentry Terraform Configuration Example
+#
+# Copy this file to terraform.tfvars and customize the values.
+# Do NOT commit terraform.tfvars to version control!
+
+# Required: Your GCP project ID
+project_id = "your-gcp-project-id"
+
+# GCP region for deployment
+region = "us-central1"
+
+# Cloud Run service name
+service_name = "iamsentry"
+
+# Container image (leave empty to use default)
+# container_image = "gcr.io/your-project/iamsentry:v1.0.0"
+
+# Scaling configuration
+min_instances = 0   # Set to 1+ for always-on
+max_instances = 10
+
+# Resource limits
+cpu    = "1"
+memory = "512Mi"
+
+# Logging level
+log_level = "INFO"
+
+# Identity-Aware Proxy (recommended for production)
+enable_iap        = false
+iap_support_email = ""  # e.g., "admin@your-domain.com"
+# iap_allowed_members = ["user:admin@your-domain.com", "group:security@your-domain.com"]
+
+# Enable remediation permissions (use with caution!)
+enable_remediation = false
+
+# VPC connector for private networking (optional)
+# vpc_connector = "projects/your-project/locations/us-central1/connectors/your-connector"
+
+# Labels
+labels = {
+  app         = "iamsentry"
+  managed-by  = "terraform"
+  environment = "production"
+  team        = "security"
+}
