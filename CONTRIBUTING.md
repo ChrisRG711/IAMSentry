@@ -18,8 +18,8 @@ Please be respectful and constructive in all interactions. We welcome contributo
 
 ```bash
 # Clone the repository
-git clone https://github.com/documo/iamsentry.git
-cd iamsentry
+git clone https://github.com/ChrisRG711/IAMSentry.git
+cd IAMSentry
 
 # Create virtual environment
 python -m venv .venv
@@ -145,4 +145,4 @@ Open an issue or discussion if you have questions about contributing.
 
 ## License
 
-By contributing to IAMSentry, you agree that your contributions will be licensed under the Apache License 2.0.
+By contributing to IAMSentry, you agree that your contributions will be licensed under the MIT License. Note that portions of this project are derived from CureIAM (Apache 2.0) - see the NOTICE file for details.

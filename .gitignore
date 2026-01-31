@@ -6,19 +6,27 @@
 # NEVER commit credentials to the repository!
 
 # Service account keys
-*.json
-!package.json
-!tsconfig.json
 *-key.json
 *_key.json
 service-account*.json
 credentials*.json
+vanta-*.json
 
 # Configuration files with secrets
 my_config.yaml
 config.yaml
 !config.template.yaml
 !config.example.yaml
+
+# Audit logs (may contain sensitive data)
+audit.log
+*.audit.log
+
+# IAM analysis/recommendation outputs (contain sensitive GCP data)
+audit_analysis_*.json
+*_iam_*.json
+iam_recommendations*.json
+fresh_*.json
 
 # Environment files
 .env

@@ -17,15 +17,25 @@ class TestAuthConfig:
     """Tests for AuthConfig class."""
 
     def test_auth_config_default_disabled(self):
-        """Test auth config with no env vars defaults to generating a key."""
+        """Test auth config with no env vars does not generate a key."""
         # Clear env vars
         with patch.dict(os.environ, {}, clear=True):
             # Need to reload to pick up new env
             from IAMSentry.dashboard.auth import AuthConfig
             config = AuthConfig()
-            # Should generate a default key and be enabled
+            # Should be enabled but have no credentials configured
             assert config.enabled is True
-            assert len(config.api_keys) == 1  # Generated key
+            assert len(config.api_keys) == 0
+
+    def test_auth_config_default_key_allowed(self):
+        """Test auth config can generate a key when explicitly allowed."""
+        with patch.dict(os.environ, {
+            "IAMSENTRY_AUTH_ALLOW_DEFAULT_KEY": "true",
+        }, clear=True):
+            from IAMSentry.dashboard.auth import AuthConfig
+            config = AuthConfig()
+            assert config.enabled is True
+            assert len(config.api_keys) == 1
 
     def test_auth_config_disabled_explicitly(self):
         """Test auth can be disabled via env var."""

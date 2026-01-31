@@ -68,7 +68,7 @@ def main():
     try:
         # Load configuration
         from IAMSentry.helpers.hconfigs import Config
-        config = Config.load([args.config_file])
+        config = Config.load(args.config_file)
         
         # Initialize plugins based on mode
         results = run_enhanced_analysis(config, args)

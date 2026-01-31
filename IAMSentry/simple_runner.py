@@ -25,7 +25,7 @@ def main():
     try:
         # Load configuration
         from IAMSentry.helpers.hconfigs import Config
-        config = Config.load([config_file])
+        config = Config.load(config_file)
         
         # Initialize the GCP IAM plugin directly (bypass multiprocessing)
         from IAMSentry.plugins.gcp.gcpcloud import GCPCloudIAMRecommendations

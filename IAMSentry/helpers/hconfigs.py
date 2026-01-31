@@ -148,7 +148,8 @@ class Config:
     def load(
         cls,
         filepath: Union[str, Path],
-        resolve_secrets: bool = False
+        resolve_secrets: bool = False,
+        validate: bool = True
     ) -> 'Config':
         """Load configuration from a YAML file.
 
@@ -176,6 +177,12 @@ class Config:
             >>> # Load and resolve secrets in one step
             >>> config = Config.load('config.yaml', resolve_secrets=True)
         """
+        # Allow legacy callers to pass a list/tuple of paths; use the first entry.
+        if isinstance(filepath, (list, tuple)):
+            if not filepath:
+                raise FileNotFoundError("Configuration file list is empty")
+            filepath = filepath[0]
+
         filepath = Path(filepath)
 
         # Check if file exists
@@ -193,6 +200,16 @@ class Config:
 
         # Start with base configuration
         merged_config = _deep_merge(baseconfig.config_dict.copy(), user_config)
+
+        # Optionally validate merged configuration with Pydantic models
+        validate_env = os.environ.get("IAMSENTRY_VALIDATE_CONFIG", "true").lower() != "false"
+        if validate and validate_env:
+            try:
+                from IAMSentry.config_models import IAMSentryConfig
+                IAMSentryConfig.from_dict(merged_config)
+            except Exception as e:
+                _log.error("Configuration validation failed: %s", e)
+                raise
 
         config = cls(merged_config)
 

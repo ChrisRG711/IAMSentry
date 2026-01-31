@@ -345,7 +345,7 @@ class GCPIAMRecommendationProcessor:
             flag_blacklist = self._validate_blacklist(_project=_project,_account_id=_account_id, _account_type=_account_type)
             
             # Check whitelist validation
-            flag_whitelist = self._validate_whitelist(_account_type=_account_type)
+            flag_whitelist = self._validate_whitelist(_project=_project, _account_type=_account_type)
     
             if flag_blacklist and flag_whitelist:
                 # If Recommendation is for SA, apply only for ['REMOVE_ROLE', 'REPLACE_ROLE']
@@ -356,13 +356,15 @@ class GCPIAMRecommendationProcessor:
                     _we_want_to_apply_recommendation = True
                 
                 else:
-                    if _account_type != 'serviceAccount': 
+                    if _account_type != 'serviceAccount':
                         # If user is owner of any project dont apply recommendation
-                        # <TODO> this is very bad of detecting owners, need to find better way of doing this.
-                        if not 'owner' in str(record['raw']['content']['operationGroups']):
+                        if not self._is_owner_recommendation(record):
                             _we_want_to_apply_recommendation = True
 
-                _we_want_to_apply_recommendation = self._validate_safety_score(_account_type=_account_type, _safety_score=_safety_score)
+                _we_want_to_apply_recommendation = (
+                    _we_want_to_apply_recommendation
+                    and self._validate_safety_score(_account_type=_account_type, _safety_score=_safety_score)
+                )
                 
 
             if _we_want_to_apply_recommendation:
@@ -408,10 +410,29 @@ class GCPIAMRecommendationProcessor:
 
         return True
 
-    def _validate_whitelist(self, _account_type):
+    def _validate_whitelist(self, _project, _account_type):
+        if self._apply_recommendation_allowlist_projects:
+            if _project not in self._apply_recommendation_allowlist_projects:
+                _log.warning("Project %s is not in allowlist", hlogging.obfuscated(_project))
+                return False
+
         if (_account_type in self._apply_recommendation_allowlist_account_types):
             return True
 
+        return False
+
+    def _is_owner_recommendation(self, record) -> bool:
+        """Detect owner role changes conservatively from recommendation content."""
+        try:
+            operation_groups = record.get('raw', {}).get('content', {}).get('operationGroups', [])
+            for group in operation_groups:
+                for op in group.get('operations', []):
+                    value = str(op.get('value', '')).lower()
+                    path = str(op.get('path', '')).lower()
+                    if 'roles/owner' in value or 'roles/owner' in path:
+                        return True
+        except Exception:
+            return False
         return False
 
     def _validate_safety_score(self, _account_type, _safety_score): # Logic from defining whether we'll remove or not based on the pre-configuration score

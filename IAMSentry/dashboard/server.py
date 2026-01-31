@@ -59,12 +59,14 @@ app = FastAPI(
 )
 
 # Add CORS middleware with configurable origins
+# Note: When allow_credentials=True, we must specify explicit headers (not "*")
+# to prevent security vulnerabilities with credentialed requests.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Requested-With"],
 )
 
 
@@ -96,7 +98,9 @@ async def auth_middleware(request: Request, call_next):
 
     # Try API Key
     if api_key and config.verify_api_key(api_key):
-        user = f"api_key:{api_key[:8]}..."
+        import hashlib
+        key_id = hashlib.sha256(api_key.encode()).hexdigest()[:12]
+        user = f"api_key:{key_id}"
 
     # Try Basic Auth
     if not user and auth_header.startswith("Basic "):

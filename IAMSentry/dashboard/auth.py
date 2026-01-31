@@ -60,6 +60,12 @@ class AuthConfig:
     def __init__(self):
         """Load authentication configuration from environment."""
         self.enabled = os.environ.get("IAMSENTRY_AUTH_ENABLED", "true").lower() != "false"
+        self.allow_default_key = os.environ.get(
+            "IAMSENTRY_AUTH_ALLOW_DEFAULT_KEY", "false"
+        ).lower() == "true"
+        self.log_default_key = os.environ.get(
+            "IAMSENTRY_AUTH_LOG_DEFAULT_KEY", "false"
+        ).lower() == "true"
 
         # Load API keys
         api_keys_str = os.environ.get("IAMSENTRY_API_KEYS", "")
@@ -79,26 +85,50 @@ class AuthConfig:
 
         # Generate a default key if none configured (for development)
         if self.enabled and not self.api_keys and not self.basic_auth_users:
-            default_key = secrets.token_urlsafe(32)
-            self.api_keys.add(default_key)
-            _log.warning(
-                "No authentication configured! Generated temporary API key: %s",
-                default_key
-            )
-            _log.warning(
-                "Set IAMSENTRY_API_KEYS or IAMSENTRY_BASIC_AUTH_USERS environment variables for production."
-            )
+            if self.allow_default_key:
+                default_key = secrets.token_urlsafe(32)
+                self.api_keys.add(default_key)
+                if self.log_default_key:
+                    _log.warning(
+                        "No authentication configured! Generated temporary API key: %s",
+                        default_key
+                    )
+                else:
+                    _log.warning(
+                        "No authentication configured! Generated temporary API key (prefix): %s...",
+                        default_key[:8]
+                    )
+                    _log.warning(
+                        "Set IAMSENTRY_AUTH_LOG_DEFAULT_KEY=true to log the full key (dev only)."
+                    )
+                _log.warning(
+                    "Set IAMSENTRY_API_KEYS or IAMSENTRY_BASIC_AUTH_USERS environment variables for production."
+                )
+            else:
+                _log.error(
+                    "Authentication is enabled but no credentials are configured. "
+                    "Set IAMSENTRY_API_KEYS or IAMSENTRY_BASIC_AUTH_USERS."
+                )
 
     @staticmethod
     def _hash_password(password: str) -> str:
         """Hash a password for secure comparison.
 
-        Uses SHA-256 with a static salt (passwords come from env vars,
-        so proper salting would require additional storage).
+        Uses bcrypt via passlib for secure password hashing.
+        Falls back to SHA-256 with warning if passlib is unavailable.
         """
-        # For env-var based passwords, we use a simple hash
-        # In production, consider using bcrypt if passwords are stored elsewhere
-        return hashlib.sha256(password.encode()).hexdigest()
+        try:
+            from passlib.context import CryptContext
+            ctx = CryptContext(schemes=["bcrypt", "sha256_crypt"], deprecated="auto")
+            return ctx.hash(password)
+        except ImportError:
+            _log.warning(
+                "passlib not installed - using less secure SHA-256 hashing. "
+                "Install passlib[bcrypt] for production: pip install 'passlib[bcrypt]'"
+            )
+            # Fallback with static salt - NOT recommended for production
+            salt = "iamsentry_static_salt_v1"
+            return hashlib.sha256((salt + password).encode()).hexdigest()
 
     def verify_api_key(self, api_key: str) -> bool:
         """Verify an API key.
@@ -133,6 +163,16 @@ class AuthConfig:
         stored_hash = self.basic_auth_users.get(username)
         if not stored_hash:
             return False
+
+        # If stored hash looks like bcrypt/sha256_crypt, try passlib verify.
+        if stored_hash.startswith("$2") or stored_hash.startswith("$5$") or stored_hash.startswith("$6$"):
+            try:
+                from passlib.context import CryptContext
+                ctx = CryptContext(schemes=["bcrypt", "sha256_crypt"], deprecated="auto")
+                return ctx.verify(password, stored_hash)
+            except Exception:
+                _log.warning("Passlib not available to verify hashed password for user: %s", username)
+                return False
 
         password_hash = self._hash_password(password)
         # Use constant-time comparison to prevent timing attacks
@@ -225,7 +265,9 @@ async def verify_authentication(
     # Try API Key first
     if api_key and config.verify_api_key(api_key):
         _log.debug("Authenticated via API key")
-        return f"api_key:{api_key[:8]}..."  # Log partial key for audit
+        # Use hash identifier instead of partial key to prevent targeted attacks
+        key_id = hashlib.sha256(api_key.encode()).hexdigest()[:12]
+        return f"api_key:{key_id}"
 
     # Try Basic Auth from header
     auth_header = request.headers.get("Authorization", "")
@@ -354,7 +396,8 @@ def create_auth_middleware(app):
 
         # Try API Key
         if api_key and config.verify_api_key(api_key):
-            user = f"api_key:{api_key[:8]}..."
+            key_id = hashlib.sha256(api_key.encode()).hexdigest()[:12]
+            user = f"api_key:{key_id}"
 
         # Try Basic Auth
         if not user and auth_header.startswith("Basic "):

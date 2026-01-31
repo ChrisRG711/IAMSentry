@@ -72,10 +72,10 @@ iamsentry-legacy = "IAMSentry.manager:main"
 iamsentry-dashboard = "IAMSentry.dashboard.server:main"
 
 [project.urls]
-Homepage = "https://github.com/documo/iamsentry"
-Documentation = "https://github.com/documo/iamsentry#readme"
-Repository = "https://github.com/documo/iamsentry.git"
-Issues = "https://github.com/documo/iamsentry/issues"
+Homepage = "https://github.com/ChrisRG711/IAMSentry"
+Documentation = "https://github.com/ChrisRG711/IAMSentry#readme"
+Repository = "https://github.com/ChrisRG711/IAMSentry.git"
+Issues = "https://github.com/ChrisRG711/IAMSentry/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

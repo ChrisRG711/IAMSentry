@@ -11,6 +11,7 @@ subprocess.
 import multiprocessing as mp
 
 import copy
+import os
 import textwrap
 import time
 import json
@@ -31,6 +32,22 @@ from IAMSentry.helpers import hlogging
 # from IAMSentry.helpers.hlogging import Logger
 
 _log = hlogging.get_logger(__name__)
+
+def _get_queue_maxsize() -> int:
+    """Get queue maxsize from environment. 0 means unbounded."""
+    try:
+        value = int(os.environ.get("IAMSENTRY_QUEUE_MAXSIZE", "1000"))
+    except ValueError:
+        value = 1000
+    return max(0, value)
+
+def _get_join_timeout() -> int:
+    """Get worker join timeout from environment (seconds)."""
+    try:
+        value = int(os.environ.get("IAMSENTRY_WORKER_JOIN_TIMEOUT", "300"))
+    except ValueError:
+        value = 300
+    return max(0, value)
 
 def main():
     """Run the framework based on the schedule."""
@@ -145,9 +162,11 @@ class Audit:
         self._processor_queues = []
         self._alert_queues = []
 
+        queue_maxsize = _get_queue_maxsize()
+
         # Create alert workers and queues.
         for plugin_key in audit_config.get('alerts', []):
-            input_queue = mp.Queue()
+            input_queue = mp.Queue(maxsize=queue_maxsize)
             args = (
                 audit_key,
                 audit_version,
@@ -161,7 +180,7 @@ class Audit:
 
         # Create processor_workers workers and queues.
         for plugin_key in audit_config.get('processors', []):
-            input_queue = mp.Queue()
+            input_queue = mp.Queue(maxsize=queue_maxsize)
             args = (
                 audit_key,
                 audit_version,
@@ -176,7 +195,7 @@ class Audit:
 
         # Create store workers and queues.
         for plugin_key in audit_config.get('stores', []):
-            input_queue = mp.Queue()
+            input_queue = mp.Queue(maxsize=queue_maxsize)
             args = (
                 audit_key,
                 audit_version,
@@ -234,9 +253,14 @@ class Audit:
 
     def join(self):
         """Wait until all workers terminate."""
+        join_timeout = _get_join_timeout()
         # Wait for cloud workers to terminate.
         for w in self._cloud_workers:
-            w.join()
+            w.join(timeout=join_timeout if join_timeout > 0 else None)
+            if w.is_alive():
+                _log.warning('cloud_worker: %s did not exit; terminating', w.name)
+                w.terminate()
+                w.join(timeout=10)
 
         # Stop processor workers.
         for q in self._processor_queues:
@@ -244,7 +268,11 @@ class Audit:
 
         # Wait for processor workers to terminate.
         for w in self._processor_workers:
-            w.join()
+            w.join(timeout=join_timeout if join_timeout > 0 else None)
+            if w.is_alive():
+                _log.warning('processor_worker: %s did not exit; terminating', w.name)
+                w.terminate()
+                w.join(timeout=10)
 
         # Stop store workers.
         for q in self._store_queues:
@@ -252,7 +280,11 @@ class Audit:
 
         # Wait for store workers to terminate.
         for w in self._store_workers:
-            w.join()
+            w.join(timeout=join_timeout if join_timeout > 0 else None)
+            if w.is_alive():
+                _log.warning('store_worker: %s did not exit; terminating', w.name)
+                w.terminate()
+                w.join(timeout=10)
 
         # Stop alert workers.
         for q in self._alert_queues:
@@ -260,7 +292,11 @@ class Audit:
 
         # Wait for alert workers to terminate.
         for w in self._alert_workers:
-            w.join()
+            w.join(timeout=join_timeout if join_timeout > 0 else None)
+            if w.is_alive():
+                _log.warning('alert_worker: %s did not exit; terminating', w.name)
+                w.terminate()
+                w.join(timeout=10)
 
         end_time = time.localtime()
         _send_email(self._config.get('email'), self._audit_key,

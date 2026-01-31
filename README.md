@@ -47,7 +47,7 @@ See [docs/README.md](docs/README.md) for full documentation including:
 
 ## Attribution
 
-IAMSentry is a fork of [CureIAM](https://github.com/gojek/CureIAM), originally developed by the **Gojek Product Security Team** and released under the Apache License 2.0.
+IAMSentry is a fork of [CureIAM](https://github.com/gojek/CureIAM), originally developed by the **Gojek Product Security Team** 
 
 We are grateful to the original authors for their foundational work on GCP IAM recommendation scanning built upon the Cloudmarker framework.
 
@@ -66,12 +66,6 @@ This fork has been substantially extended with:
 
 See [NOTICE](NOTICE) for full attribution details.
 
-## License
-
-Licensed under the Apache License 2.0.
-
-- Original CureIAM Copyright 2021 Gojek
-- Modifications and additions Copyright 2024 Documo
 
 ## Contributing
 
